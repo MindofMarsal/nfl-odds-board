@@ -1,282 +1,101 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+
+const API_KEY = import.meta.env.VITE_ODDS_API_KEY;
 
 const BOOKS = ['DraftKings', 'FanDuel', 'BetMGM', 'Caesars'];
 const BOOK_SHORT = { DraftKings: 'DK', FanDuel: 'FD', BetMGM: 'MGM', Caesars: 'CZR' };
+// The Odds API bookmaker "key" values to match against (lowercase). Caesars
+// has historically been listed under the William Hill US key.
+const BOOK_KEYS = {
+  DraftKings: ['draftkings'],
+  FanDuel: ['fanduel'],
+  BetMGM: ['betmgm'],
+  Caesars: ['williamhill_us', 'caesars'],
+};
 
-const GAMES = [
-  {
-    id: 'g1',
-    kickoff: 'Sun · 1:00 PM ET',
-    away: { name: 'Kansas City Chiefs', abbr: 'KC', color: '#E31837' },
-    home: { name: 'Buffalo Bills', abbr: 'BUF', color: '#00338D' },
-    spread: {
-      away: {
-        DraftKings: { line: 3, price: -108 }, FanDuel: { line: 2.5, price: -112 },
-        BetMGM: { line: 3, price: -105 }, Caesars: { line: 2.5, price: -110 },
-      },
-      home: {
-        DraftKings: { line: -3, price: -112 }, FanDuel: { line: -2.5, price: -108 },
-        BetMGM: { line: -3, price: -115 }, Caesars: { line: -2.5, price: -110 },
-      },
-    },
-    total: {
-      over: {
-        DraftKings: { line: 47.5, price: -110 }, FanDuel: { line: 47, price: -105 },
-        BetMGM: { line: 47.5, price: -115 }, Caesars: { line: 48, price: -110 },
-      },
-      under: {
-        DraftKings: { line: 47.5, price: -110 }, FanDuel: { line: 47, price: -115 },
-        BetMGM: { line: 47.5, price: -105 }, Caesars: { line: 48, price: -110 },
-      },
-    },
-    ml: {
-      away: { DraftKings: 135, FanDuel: 130, BetMGM: 140, Caesars: 138 },
-      home: { DraftKings: -160, FanDuel: -155, BetMGM: -165, Caesars: -162 },
-    },
-    props: [
-      {
-        player: 'Patrick Mahomes', team: 'KC', market: 'Pass Yds',
-        over: {
-          DraftKings: { line: 275.5, price: -110 }, FanDuel: { line: 276.5, price: -115 },
-          BetMGM: { line: 275.5, price: -105 }, Caesars: { line: 274.5, price: -110 },
-        },
-        under: {
-          DraftKings: { line: 275.5, price: -110 }, FanDuel: { line: 276.5, price: -105 },
-          BetMGM: { line: 275.5, price: -115 }, Caesars: { line: 274.5, price: -110 },
-        },
-      },
-      {
-        player: 'Josh Allen', team: 'BUF', market: 'Pass Yds',
-        over: {
-          DraftKings: { line: 248.5, price: -115 }, FanDuel: { line: 247.5, price: -110 },
-          BetMGM: { line: 248.5, price: -105 }, Caesars: { line: 249.5, price: -110 },
-        },
-        under: {
-          DraftKings: { line: 248.5, price: -105 }, FanDuel: { line: 247.5, price: -110 },
-          BetMGM: { line: 248.5, price: -115 }, Caesars: { line: 249.5, price: -110 },
-        },
-      },
-    ],
-  },
-  {
-    id: 'g2',
-    kickoff: 'Sun · 4:25 PM ET',
-    away: { name: 'Dallas Cowboys', abbr: 'DAL', color: '#003594' },
-    home: { name: 'Philadelphia Eagles', abbr: 'PHI', color: '#004C54' },
-    spread: {
-      away: {
-        DraftKings: { line: 1.5, price: -110 }, FanDuel: { line: 1.5, price: -108 },
-        BetMGM: { line: 2, price: -112 }, Caesars: { line: 1.5, price: -105 },
-      },
-      home: {
-        DraftKings: { line: -1.5, price: -110 }, FanDuel: { line: -1.5, price: -112 },
-        BetMGM: { line: -2, price: -108 }, Caesars: { line: -1.5, price: -115 },
-      },
-    },
-    total: {
-      over: {
-        DraftKings: { line: 49.5, price: -108 }, FanDuel: { line: 50, price: -110 },
-        BetMGM: { line: 49.5, price: -105 }, Caesars: { line: 49.5, price: -110 },
-      },
-      under: {
-        DraftKings: { line: 49.5, price: -112 }, FanDuel: { line: 50, price: -110 },
-        BetMGM: { line: 49.5, price: -115 }, Caesars: { line: 49.5, price: -110 },
-      },
-    },
-    ml: {
-      away: { DraftKings: 105, FanDuel: 100, BetMGM: 110, Caesars: 102 },
-      home: { DraftKings: -125, FanDuel: -120, BetMGM: -130, Caesars: -122 },
-    },
-    props: [
-      {
-        player: 'CeeDee Lamb', team: 'DAL', market: 'Rec Yds',
-        over: {
-          DraftKings: { line: 84.5, price: -110 }, FanDuel: { line: 85.5, price: -110 },
-          BetMGM: { line: 84.5, price: -115 }, Caesars: { line: 83.5, price: -110 },
-        },
-        under: {
-          DraftKings: { line: 84.5, price: -110 }, FanDuel: { line: 85.5, price: -110 },
-          BetMGM: { line: 84.5, price: -105 }, Caesars: { line: 83.5, price: -110 },
-        },
-      },
-      {
-        player: 'A.J. Brown', team: 'PHI', market: 'Rec Yds',
-        over: {
-          DraftKings: { line: 71.5, price: -105 }, FanDuel: { line: 72.5, price: -110 },
-          BetMGM: { line: 71.5, price: -115 }, Caesars: { line: 71.5, price: -110 },
-        },
-        under: {
-          DraftKings: { line: 71.5, price: -115 }, FanDuel: { line: 72.5, price: -110 },
-          BetMGM: { line: 71.5, price: -105 }, Caesars: { line: 71.5, price: -110 },
-        },
-      },
-    ],
-  },
-  {
-    id: 'g3',
-    kickoff: 'Sun · 4:25 PM ET',
-    away: { name: 'San Francisco 49ers', abbr: 'SF', color: '#AA0000' },
-    home: { name: 'Seattle Seahawks', abbr: 'SEA', color: '#69BE28' },
-    spread: {
-      away: {
-        DraftKings: { line: -1, price: -110 }, FanDuel: { line: -1.5, price: -105 },
-        BetMGM: { line: -1, price: -115 }, Caesars: { line: -1, price: -108 },
-      },
-      home: {
-        DraftKings: { line: 1, price: -110 }, FanDuel: { line: 1.5, price: -115 },
-        BetMGM: { line: 1, price: -105 }, Caesars: { line: 1, price: -112 },
-      },
-    },
-    total: {
-      over: {
-        DraftKings: { line: 44, price: -110 }, FanDuel: { line: 43.5, price: -108 },
-        BetMGM: { line: 44, price: -110 }, Caesars: { line: 44, price: -105 },
-      },
-      under: {
-        DraftKings: { line: 44, price: -110 }, FanDuel: { line: 43.5, price: -112 },
-        BetMGM: { line: 44, price: -110 }, Caesars: { line: 44, price: -115 },
-      },
-    },
-    ml: {
-      away: { DraftKings: -118, FanDuel: -125, BetMGM: -115, Caesars: -120 },
-      home: { DraftKings: -102, FanDuel: 105, BetMGM: -105, Caesars: 100 },
-    },
-    props: [
-      {
-        player: 'Christian McCaffrey', team: 'SF', market: 'Rush Yds',
-        over: {
-          DraftKings: { line: 94.5, price: -110 }, FanDuel: { line: 95.5, price: -115 },
-          BetMGM: { line: 94.5, price: -105 }, Caesars: { line: 93.5, price: -110 },
-        },
-        under: {
-          DraftKings: { line: 94.5, price: -110 }, FanDuel: { line: 95.5, price: -105 },
-          BetMGM: { line: 94.5, price: -115 }, Caesars: { line: 93.5, price: -110 },
-        },
-      },
-      {
-        player: 'Kenneth Walker III', team: 'SEA', market: 'Rush Yds',
-        over: {
-          DraftKings: { line: 58.5, price: -110 }, FanDuel: { line: 57.5, price: -110 },
-          BetMGM: { line: 58.5, price: -105 }, Caesars: { line: 59.5, price: -115 },
-        },
-        under: {
-          DraftKings: { line: 58.5, price: -110 }, FanDuel: { line: 57.5, price: -110 },
-          BetMGM: { line: 58.5, price: -115 }, Caesars: { line: 59.5, price: -105 },
-        },
-      },
-    ],
-  },
-  {
-    id: 'g4',
-    kickoff: 'Sun · 8:20 PM ET',
-    away: { name: 'Detroit Lions', abbr: 'DET', color: '#0076B6' },
-    home: { name: 'Green Bay Packers', abbr: 'GB', color: '#FFB612' },
-    spread: {
-      away: {
-        DraftKings: { line: -2.5, price: -108 }, FanDuel: { line: -2.5, price: -112 },
-        BetMGM: { line: -3, price: -110 }, Caesars: { line: -2.5, price: -105 },
-      },
-      home: {
-        DraftKings: { line: 2.5, price: -112 }, FanDuel: { line: 2.5, price: -108 },
-        BetMGM: { line: 3, price: -110 }, Caesars: { line: 2.5, price: -115 },
-      },
-    },
-    total: {
-      over: {
-        DraftKings: { line: 46.5, price: -105 }, FanDuel: { line: 46, price: -110 },
-        BetMGM: { line: 46.5, price: -110 }, Caesars: { line: 46.5, price: -108 },
-      },
-      under: {
-        DraftKings: { line: 46.5, price: -115 }, FanDuel: { line: 46, price: -110 },
-        BetMGM: { line: 46.5, price: -110 }, Caesars: { line: 46.5, price: -112 },
-      },
-    },
-    ml: {
-      away: { DraftKings: -145, FanDuel: -140, BetMGM: -150, Caesars: -142 },
-      home: { DraftKings: 125, FanDuel: 120, BetMGM: 130, Caesars: 122 },
-    },
-    props: [
-      {
-        player: 'Amon-Ra St. Brown', team: 'DET', market: 'Rec Yds',
-        over: {
-          DraftKings: { line: 76.5, price: -110 }, FanDuel: { line: 77.5, price: -105 },
-          BetMGM: { line: 76.5, price: -115 }, Caesars: { line: 76.5, price: -110 },
-        },
-        under: {
-          DraftKings: { line: 76.5, price: -110 }, FanDuel: { line: 77.5, price: -115 },
-          BetMGM: { line: 76.5, price: -105 }, Caesars: { line: 76.5, price: -110 },
-        },
-      },
-      {
-        player: 'Jordan Love', team: 'GB', market: 'Pass Yds',
-        over: {
-          DraftKings: { line: 232.5, price: -105 }, FanDuel: { line: 233.5, price: -110 },
-          BetMGM: { line: 232.5, price: -115 }, Caesars: { line: 231.5, price: -110 },
-        },
-        under: {
-          DraftKings: { line: 232.5, price: -115 }, FanDuel: { line: 233.5, price: -110 },
-          BetMGM: { line: 232.5, price: -105 }, Caesars: { line: 231.5, price: -110 },
-        },
-      },
-    ],
-  },
-  {
-    id: 'g5',
-    kickoff: 'Mon · 8:15 PM ET',
-    away: { name: 'Miami Dolphins', abbr: 'MIA', color: '#008E97' },
-    home: { name: 'New York Jets', abbr: 'NYJ', color: '#125740' },
-    spread: {
-      away: {
-        DraftKings: { line: -3.5, price: -110 }, FanDuel: { line: -3, price: -115 },
-        BetMGM: { line: -3.5, price: -105 }, Caesars: { line: -3.5, price: -112 },
-      },
-      home: {
-        DraftKings: { line: 3.5, price: -110 }, FanDuel: { line: 3, price: -105 },
-        BetMGM: { line: 3.5, price: -115 }, Caesars: { line: 3.5, price: -108 },
-      },
-    },
-    total: {
-      over: {
-        DraftKings: { line: 42.5, price: -110 }, FanDuel: { line: 42, price: -110 },
-        BetMGM: { line: 42.5, price: -105 }, Caesars: { line: 42.5, price: -108 },
-      },
-      under: {
-        DraftKings: { line: 42.5, price: -110 }, FanDuel: { line: 42, price: -110 },
-        BetMGM: { line: 42.5, price: -115 }, Caesars: { line: 42.5, price: -112 },
-      },
-    },
-    ml: {
-      away: { DraftKings: -180, FanDuel: -175, BetMGM: -190, Caesars: -178 },
-      home: { DraftKings: 155, FanDuel: 150, BetMGM: 162, Caesars: 152 },
-    },
-    props: [
-      {
-        player: 'Tyreek Hill', team: 'MIA', market: 'Rec Yds',
-        over: {
-          DraftKings: { line: 88.5, price: -110 }, FanDuel: { line: 89.5, price: -110 },
-          BetMGM: { line: 88.5, price: -105 }, Caesars: { line: 87.5, price: -110 },
-        },
-        under: {
-          DraftKings: { line: 88.5, price: -110 }, FanDuel: { line: 89.5, price: -110 },
-          BetMGM: { line: 88.5, price: -115 }, Caesars: { line: 87.5, price: -110 },
-        },
-      },
-      {
-        player: 'Breece Hall', team: 'NYJ', market: 'Rush Yds',
-        over: {
-          DraftKings: { line: 64.5, price: -115 }, FanDuel: { line: 65.5, price: -110 },
-          BetMGM: { line: 64.5, price: -105 }, Caesars: { line: 63.5, price: -110 },
-        },
-        under: {
-          DraftKings: { line: 64.5, price: -105 }, FanDuel: { line: 65.5, price: -110 },
-          BetMGM: { line: 64.5, price: -115 }, Caesars: { line: 63.5, price: -110 },
-        },
-      },
-    ],
-  },
+const SPORTS = [
+  { id: 'nfl', label: 'NFL', sportKey: 'americanfootball_nfl', type: 'game' },
+  { id: 'nba', label: 'NBA', sportKey: 'basketball_nba', type: 'game' },
+  { id: 'mlb', label: 'MLB', sportKey: 'baseball_mlb', type: 'game' },
+  { id: 'nfl_futures', label: 'NFL Futures', sportKey: 'americanfootball_nfl_super_bowl_winner', type: 'futures' },
 ];
 
+// Player prop markets fetched per-game, on demand, when the user clicks
+// "Show player props" on a game card. Keeping this list short keeps each
+// click's API credit cost low (1 credit per market per region).
+const PROP_MARKETS = {
+  nfl: [
+    { key: 'player_pass_yds', label: 'Pass Yds' },
+    { key: 'player_rush_yds', label: 'Rush Yds' },
+    { key: 'player_reception_yds', label: 'Rec Yds' },
+  ],
+  nba: [
+    { key: 'player_points', label: 'Points' },
+    { key: 'player_rebounds', label: 'Rebounds' },
+    { key: 'player_assists', label: 'Assists' },
+  ],
+  mlb: [
+    { key: 'player_hits', label: 'Hits' },
+    { key: 'player_strikeouts', label: 'Strikeouts' },
+    { key: 'player_home_runs', label: 'Home Runs' },
+  ],
+};
+
+const MAX_PROPS_SHOWN = 8;
+
+const MAX_GAMES = 8;
+
+// Primary team colors, used for the small stripe next to each team name.
+const TEAM_COLORS = {
+  // NFL
+  'Arizona Cardinals': '#97233F', 'Atlanta Falcons': '#A71930', 'Baltimore Ravens': '#241773',
+  'Buffalo Bills': '#00338D', 'Carolina Panthers': '#0085CA', 'Chicago Bears': '#0B162A',
+  'Cincinnati Bengals': '#FB4F14', 'Cleveland Browns': '#311D00', 'Dallas Cowboys': '#003594',
+  'Denver Broncos': '#FB4F14', 'Detroit Lions': '#0076B6', 'Green Bay Packers': '#203731',
+  'Houston Texans': '#03202F', 'Indianapolis Colts': '#002C5F', 'Jacksonville Jaguars': '#101820',
+  'Kansas City Chiefs': '#E31837', 'Las Vegas Raiders': '#000000', 'Los Angeles Chargers': '#0080C6',
+  'Los Angeles Rams': '#003594', 'Miami Dolphins': '#008E97', 'Minnesota Vikings': '#4F2683',
+  'New England Patriots': '#002244', 'New Orleans Saints': '#D3BC8D', 'New York Giants': '#0B2265',
+  'New York Jets': '#125740', 'Philadelphia Eagles': '#004C54', 'Pittsburgh Steelers': '#FFB612',
+  'San Francisco 49ers': '#AA0000', 'Seattle Seahawks': '#69BE28', 'Tampa Bay Buccaneers': '#D50A0A',
+  'Tennessee Titans': '#4B92DB', 'Washington Commanders': '#5A1414',
+  // NBA
+  'Atlanta Hawks': '#E03A3E', 'Boston Celtics': '#007A33', 'Brooklyn Nets': '#000000',
+  'Charlotte Hornets': '#1D1160', 'Chicago Bulls': '#CE1141', 'Cleveland Cavaliers': '#6F263D',
+  'Dallas Mavericks': '#00538C', 'Denver Nuggets': '#0E2240', 'Detroit Pistons': '#C8102E',
+  'Golden State Warriors': '#1D428A', 'Houston Rockets': '#CE1141', 'Indiana Pacers': '#002D62',
+  'LA Clippers': '#C8102E', 'Los Angeles Lakers': '#552583', 'Memphis Grizzlies': '#5D76A9',
+  'Miami Heat': '#98002E', 'Milwaukee Bucks': '#00471B', 'Minnesota Timberwolves': '#0C2340',
+  'New Orleans Pelicans': '#0C2340', 'New York Knicks': '#006BB6', 'Oklahoma City Thunder': '#007AC1',
+  'Orlando Magic': '#0077C0', 'Philadelphia 76ers': '#006BB6', 'Phoenix Suns': '#1D1160',
+  'Portland Trail Blazers': '#E03A3E', 'Sacramento Kings': '#5A2D81', 'San Antonio Spurs': '#C4CED4',
+  'Toronto Raptors': '#CE1141', 'Utah Jazz': '#002B5C', 'Washington Wizards': '#002B5C',
+  // MLB
+  'Arizona Diamondbacks': '#A71930', 'Atlanta Braves': '#CE1141', 'Baltimore Orioles': '#DF4601',
+  'Boston Red Sox': '#BD3039', 'Chicago Cubs': '#0E3386', 'Chicago White Sox': '#27251F',
+  'Cincinnati Reds': '#C6011F', 'Cleveland Guardians': '#00385D', 'Colorado Rockies': '#33006F',
+  'Detroit Tigers': '#0C2340', 'Houston Astros': '#002D62', 'Kansas City Royals': '#004687',
+  'Los Angeles Angels': '#BA0021', 'Los Angeles Dodgers': '#005A9C', 'Miami Marlins': '#00A3E0',
+  'Milwaukee Brewers': '#0A2351', 'Minnesota Twins': '#002B5C', 'New York Mets': '#002D72',
+  'New York Yankees': '#0C2340', 'Athletics': '#003831', 'Oakland Athletics': '#003831',
+  'Philadelphia Phillies': '#E81828', 'Pittsburgh Pirates': '#FDB827', 'San Diego Padres': '#2F241D',
+  'San Francisco Giants': '#FD5A1E', 'Seattle Mariners': '#0C2C56', 'St. Louis Cardinals': '#C41E3A',
+  'St Louis Cardinals': '#C41E3A', 'Tampa Bay Rays': '#092C5C', 'Texas Rangers': '#003278',
+  'Toronto Blue Jays': '#134A8E', 'Washington Nationals': '#AB0003',
+};
+
+function teamColor(name) {
+  return TEAM_COLORS[name] || '#5F5E5A';
+}
+
+// "Kansas City Chiefs" -> "Chiefs", "Portland Trail Blazers" -> "Blazers"
+function teamShort(name) {
+  const parts = name.split(' ');
+  return parts[parts.length - 1];
+}
+
 function fmtPrice(p) {
+  if (p === undefined || p === null) return '—';
   return p > 0 ? `+${p}` : `${p}`;
 }
 
@@ -285,40 +104,158 @@ function fmtLine(l) {
   return l > 0 ? `+${l}` : `${l}`;
 }
 
+function formatKickoff(iso) {
+  const d = new Date(iso);
+  return d.toLocaleString(undefined, {
+    weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+  });
+}
+
+function findBookmaker(bookmakers, bookName) {
+  const keys = BOOK_KEYS[bookName];
+  return bookmakers.find((b) => keys.includes((b.key || '').toLowerCase()));
+}
+
+// Converts one event from the API into the shape our UI components expect.
+function transformGame(event) {
+  const bookmakers = event.bookmakers || [];
+  const result = {
+    id: event.id,
+    kickoff: formatKickoff(event.commence_time),
+    away: { name: event.away_team, color: teamColor(event.away_team) },
+    home: { name: event.home_team, color: teamColor(event.home_team) },
+    spread: { away: {}, home: {} },
+    total: { over: {}, under: {} },
+    ml: { away: {}, home: {} },
+  };
+
+  BOOKS.forEach((bookName) => {
+    const bm = findBookmaker(bookmakers, bookName);
+    if (!bm) return;
+    const markets = bm.markets || [];
+    const h2h = markets.find((m) => m.key === 'h2h');
+    const spreads = markets.find((m) => m.key === 'spreads');
+    const totals = markets.find((m) => m.key === 'totals');
+
+    if (h2h) {
+      const away = h2h.outcomes.find((o) => o.name === event.away_team);
+      const home = h2h.outcomes.find((o) => o.name === event.home_team);
+      if (away) result.ml.away[bookName] = away.price;
+      if (home) result.ml.home[bookName] = home.price;
+    }
+    if (spreads) {
+      const away = spreads.outcomes.find((o) => o.name === event.away_team);
+      const home = spreads.outcomes.find((o) => o.name === event.home_team);
+      if (away) result.spread.away[bookName] = { line: away.point, price: away.price };
+      if (home) result.spread.home[bookName] = { line: home.point, price: home.price };
+    }
+    if (totals) {
+      const over = totals.outcomes.find((o) => o.name === 'Over');
+      const under = totals.outcomes.find((o) => o.name === 'Under');
+      if (over) result.total.over[bookName] = { line: over.point, price: over.price };
+      if (under) result.total.under[bookName] = { line: under.point, price: under.price };
+    }
+  });
+
+  return result;
+}
+
+// Converts the outrights event into a sorted list of { team, prices }.
+function transformFutures(events) {
+  const event = events && events[0];
+  if (!event) return [];
+  const bookmakers = event.bookmakers || [];
+  const teams = {};
+
+  BOOKS.forEach((bookName) => {
+    const bm = findBookmaker(bookmakers, bookName);
+    if (!bm) return;
+    const market = (bm.markets || []).find((m) => m.key === 'outrights');
+    if (!market) return;
+    market.outcomes.forEach((o) => {
+      if (!teams[o.name]) teams[o.name] = {};
+      teams[o.name][bookName] = o.price;
+    });
+  });
+
+  return Object.entries(teams)
+    .map(([team, prices]) => ({ team, prices, color: teamColor(team) }))
+    .sort((a, b) => {
+      const aMin = Math.min(...Object.values(a.prices));
+      const bMin = Math.min(...Object.values(b.prices));
+      return aMin - bMin;
+    });
+}
+
+// Converts a per-event player-props response into a list of
+// { player, market, over: {book: {line, price}}, under: {...} }.
+function transformPlayerProps(eventData, marketDefs) {
+  const bookmakers = eventData.bookmakers || [];
+  const props = {};
+
+  BOOKS.forEach((bookName) => {
+    const bm = findBookmaker(bookmakers, bookName);
+    if (!bm) return;
+    (bm.markets || []).forEach((market) => {
+      const def = marketDefs.find((d) => d.key === market.key);
+      if (!def) return;
+      (market.outcomes || []).forEach((o) => {
+        const player = o.description || o.name;
+        const propKey = `${player}|${market.key}`;
+        if (!props[propKey]) props[propKey] = { player, market: def.label, over: {}, under: {} };
+        if (o.name === 'Over') props[propKey].over[bookName] = { line: o.point, price: o.price };
+        else if (o.name === 'Under') props[propKey].under[bookName] = { line: o.point, price: o.price };
+      });
+    });
+  });
+
+  return Object.values(props).filter(
+    (p) => Object.keys(p.over).length > 0 || Object.keys(p.under).length > 0
+  );
+}
+
 // Best price = max() works for American odds regardless of sign.
+// Returns null if no book has data for this row.
 function bestPriceBook(row) {
-  return BOOKS.reduce((best, b) => (row[b].price > row[best].price ? b : best), BOOKS[0]);
+  let best = null;
+  BOOKS.forEach((b) => {
+    if (!row[b]) return;
+    if (best === null || row[b].price > row[best].price) best = b;
+  });
+  return best;
 }
 
 // Best line: for spreads, higher line favors the bettor on both sides.
 // For totals: lower line favors the over, higher line favors the under.
 function bestLineBook(row, mode) {
-  return BOOKS.reduce((best, b) => {
-    if (mode === 'min') return row[b].line < row[best].line ? b : best;
-    return row[b].line > row[best].line ? b : best;
-  }, BOOKS[0]);
+  let best = null;
+  BOOKS.forEach((b) => {
+    if (!row[b]) return;
+    if (best === null) { best = b; return; }
+    if (mode === 'min') { if (row[b].line < row[best].line) best = b; }
+    else if (row[b].line > row[best].line) best = b;
+  });
+  return best;
 }
 
 function bestMLBook(row) {
-  return BOOKS.reduce((best, b) => (row[b] > row[best] ? b : best), BOOKS[0]);
+  let best = null;
+  BOOKS.forEach((b) => {
+    if (row[b] === undefined) return;
+    if (best === null || row[b] > row[best]) best = b;
+  });
+  return best;
 }
 
-// Collects the "best price" book across every market for a game —
-// spread/total/moneyline plus all player props — for tallying purposes.
 function getGameBestBooks(game) {
-  const bests = [
+  return [
     bestPriceBook(game.spread.away),
     bestPriceBook(game.spread.home),
     bestPriceBook(game.total.over),
     bestPriceBook(game.total.under),
     bestMLBook(game.ml.away),
     bestMLBook(game.ml.home),
-  ];
-  game.props.forEach((p) => {
-    bests.push(bestPriceBook(p.over));
-    bests.push(bestPriceBook(p.under));
-  });
-  return bests;
+  ].filter(Boolean);
 }
 
 function tallyBooks(bookList) {
@@ -326,6 +263,10 @@ function tallyBooks(bookList) {
   BOOKS.forEach((b) => (tally[b] = 0));
   bookList.forEach((b) => tally[b]++);
   return tally;
+}
+
+function EmptyCell() {
+  return <div className="flex items-center justify-center py-2 px-1 text-sm line-muted">—</div>;
 }
 
 function OddsCell({ price, line, isBestPrice, isBestLine }) {
@@ -337,7 +278,7 @@ function OddsCell({ price, line, isBestPrice, isBestLine }) {
     >
       {line !== undefined && (
         <span className={`text-xs leading-none mb-0.5 ${isBestLine ? 'line-best' : 'line-muted'}`}>
-          {fmtLine(line)}
+          {line}
         </span>
       )}
       <span className="font-mono text-sm leading-none">{fmtPrice(price)}</span>
@@ -345,8 +286,90 @@ function OddsCell({ price, line, isBestPrice, isBestLine }) {
   );
 }
 
-function GameCard({ game }) {
-  const cols = `140px repeat(${BOOKS.length}, 1fr)`;
+function RowGroup({ label }) {
+  return (
+    <div className="px-3 py-1 text-xs uppercase tracking-widest row-group-label">{label}</div>
+  );
+}
+
+function Row({ sideLabel, row, bestPrice, bestLine, cols, withLine, linePrefix }) {
+  return (
+    <div className="grid items-center border-row" style={{ gridTemplateColumns: cols }}>
+      <div className="px-3 py-1 text-sm font-mono side-label">{sideLabel}</div>
+      {BOOKS.map((b) => {
+        const cell = row[b];
+        if (!cell) return <EmptyCell key={b} />;
+        const display = linePrefix ? `${linePrefix}${cell.line}` : fmtLine(cell.line);
+        return (
+          <OddsCell
+            key={b}
+            price={cell.price}
+            line={withLine ? display : undefined}
+            isBestPrice={b === bestPrice}
+            isBestLine={b === bestLine}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+function MoneylineRow({ sideLabel, row, best, cols }) {
+  return (
+    <div className="grid items-center border-row" style={{ gridTemplateColumns: cols }}>
+      <div className="px-3 py-1 text-sm font-mono side-label">{sideLabel}</div>
+      {BOOKS.map((b) => {
+        if (row[b] === undefined) return <EmptyCell key={b} />;
+        return (
+          <div
+            key={b}
+            className={`flex items-center justify-center py-2 px-1 rounded font-mono text-sm ${
+              b === best ? 'odds-best' : ''
+            }`}
+          >
+            {fmtPrice(row[b])}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function GameCard({ game, sportKey, propMarkets, onQuota }) {
+  const cols = `110px repeat(${BOOKS.length}, 1fr)`;
+
+  const [showProps, setShowProps] = useState(false);
+  const [props, setProps] = useState(null);
+  const [propsLoading, setPropsLoading] = useState(false);
+  const [propsError, setPropsError] = useState(null);
+
+  const loadProps = useCallback(async () => {
+    setPropsLoading(true);
+    setPropsError(null);
+    try {
+      const marketsParam = propMarkets.map((m) => m.key).join(',');
+      const url = `https://api.the-odds-api.com/v4/sports/${sportKey}/events/${game.id}/odds?regions=us&markets=${marketsParam}&oddsFormat=american&apiKey=${API_KEY}`;
+      const res = await fetch(url);
+      const remaining = res.headers.get('x-requests-remaining');
+      if (remaining !== null && onQuota) onQuota(remaining);
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Props error (${res.status}): ${text.slice(0, 150)}`);
+      }
+      const json = await res.json();
+      setProps(transformPlayerProps(json, propMarkets));
+    } catch (e) {
+      setPropsError(e.message);
+    } finally {
+      setPropsLoading(false);
+    }
+  }, [propMarkets, sportKey, game.id, onQuota]);
+
+  const handleTogglePropsClick = () => {
+    const next = !showProps;
+    setShowProps(next);
+    if (next && props === null && !propsLoading) loadProps();
+  };
 
   const spreadAwayBest = bestPriceBook(game.spread.away);
   const spreadAwayLineBest = bestLineBook(game.spread.away, 'max');
@@ -361,9 +384,9 @@ function GameCard({ game }) {
   const mlAwayBest = bestMLBook(game.ml.away);
   const mlHomeBest = bestMLBook(game.ml.home);
 
-  // Tally which book has the most "best" cells for this game.
   const tally = tallyBooks(getGameBestBooks(game));
-  const topBook = Object.entries(tally).sort((a, b) => b[1] - a[1])[0][0];
+  const topEntry = Object.entries(tally).sort((a, b) => b[1] - a[1])[0];
+  const topBook = topEntry[1] > 0 ? topEntry[0] : null;
 
   return (
     <div className="board-card rounded-lg overflow-hidden mb-5">
@@ -383,15 +406,16 @@ function GameCard({ game }) {
         </div>
         <div className="text-right">
           <div className="text-xs kickoff-text font-mono tracking-wide">{game.kickoff}</div>
-          <div className="text-xs mt-2 best-book-badge">
-            Best value: <span className="font-mono">{topBook}</span>
-          </div>
+          {topBook && (
+            <div className="text-xs mt-2 best-book-badge">
+              Best value: <span className="font-mono">{topBook}</span>
+            </div>
+          )}
         </div>
       </div>
 
       <div className="overflow-x-auto">
-        <div style={{ minWidth: '520px' }}>
-          {/* Column header */}
+        <div style={{ minWidth: '460px' }}>
           <div className="grid" style={{ gridTemplateColumns: cols }}>
             <div className="px-3 py-2 text-xs label-text">Market</div>
             {BOOKS.map((b) => (
@@ -401,10 +425,9 @@ function GameCard({ game }) {
             ))}
           </div>
 
-          {/* Spread */}
           <RowGroup label="Spread" />
           <Row
-            sideLabel={game.away.abbr}
+            sideLabel={teamShort(game.away.name)}
             row={game.spread.away}
             bestPrice={spreadAwayBest}
             bestLine={spreadAwayLineBest}
@@ -412,7 +435,7 @@ function GameCard({ game }) {
             withLine
           />
           <Row
-            sideLabel={game.home.abbr}
+            sideLabel={teamShort(game.home.name)}
             row={game.spread.home}
             bestPrice={spreadHomeBest}
             bestLine={spreadHomeLineBest}
@@ -420,7 +443,6 @@ function GameCard({ game }) {
             withLine
           />
 
-          {/* Total */}
           <RowGroup label="Total" />
           <Row
             sideLabel="Over"
@@ -441,62 +463,78 @@ function GameCard({ game }) {
             linePrefix="u"
           />
 
-          {/* Moneyline */}
           <RowGroup label="Moneyline" />
-          <MoneylineRow sideLabel={game.away.abbr} row={game.ml.away} best={mlAwayBest} cols={cols} />
-          <MoneylineRow sideLabel={game.home.abbr} row={game.ml.home} best={mlHomeBest} cols={cols} />
+          <MoneylineRow sideLabel={teamShort(game.away.name)} row={game.ml.away} best={mlAwayBest} cols={cols} />
+          <MoneylineRow sideLabel={teamShort(game.home.name)} row={game.ml.home} best={mlHomeBest} cols={cols} />
 
-          {/* Player Props */}
-          <RowGroup label="Player Props" />
-          {game.props.map((p) => (
-            <React.Fragment key={p.player}>
-              <div className="px-3 py-1 text-xs prop-label border-row">
-                <span className="font-display">{p.player}</span>{' '}
-                <span className="kickoff-text">
-                  ({p.team}) &middot; {p.market}
-                </span>
-              </div>
-              <Row
-                sideLabel="Over"
-                row={p.over}
-                bestPrice={bestPriceBook(p.over)}
-                bestLine={bestLineBook(p.over, 'min')}
-                cols={cols}
-                withLine
-                linePrefix="o"
-              />
-              <Row
-                sideLabel="Under"
-                row={p.under}
-                bestPrice={bestPriceBook(p.under)}
-                bestLine={bestLineBook(p.under, 'max')}
-                cols={cols}
-                withLine
-                linePrefix="u"
-              />
-            </React.Fragment>
-          ))}
+          {propMarkets && (
+            <div className="border-row">
+              <button className="props-toggle-btn" onClick={handleTogglePropsClick}>
+                {showProps ? 'Hide player props' : 'Show player props'}
+                {propsLoading ? ' (loading…)' : ''}
+              </button>
+
+              {showProps && propsError && (
+                <div className="error-box" style={{ margin: '0.5rem 0.75rem' }}>{propsError}</div>
+              )}
+
+              {showProps && props && props.length === 0 && (
+                <div className="px-3 py-2 text-xs kickoff-text">No player props available for this game yet.</div>
+              )}
+
+              {showProps && props && props.length > 0 && (
+                <>
+                  <RowGroup label="Player Props" />
+                  {props.slice(0, MAX_PROPS_SHOWN).map((p) => (
+                    <React.Fragment key={`${p.player}-${p.market}`}>
+                      <div className="px-3 py-1 text-xs prop-label border-row">
+                        <span className="font-display">{p.player}</span>{' '}
+                        <span className="kickoff-text">&middot; {p.market}</span>
+                      </div>
+                      <Row
+                        sideLabel="Over"
+                        row={p.over}
+                        bestPrice={bestPriceBook(p.over)}
+                        bestLine={bestLineBook(p.over, 'min')}
+                        cols={cols}
+                        withLine
+                        linePrefix="o"
+                      />
+                      <Row
+                        sideLabel="Under"
+                        row={p.under}
+                        bestPrice={bestPriceBook(p.under)}
+                        bestLine={bestLineBook(p.under, 'max')}
+                        cols={cols}
+                        withLine
+                        linePrefix="u"
+                      />
+                    </React.Fragment>
+                  ))}
+                </>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-function Leaderboard() {
+function Leaderboard({ games }) {
   const tally = {};
   BOOKS.forEach((b) => (tally[b] = 0));
   let total = 0;
 
-  GAMES.forEach((g) => {
+  games.forEach((g) => {
     getGameBestBooks(g).forEach((b) => {
       tally[b]++;
       total++;
     });
   });
 
-  const ranked = BOOKS.map((b) => ({ book: b, count: tally[b] }))
-    .sort((a, b) => b.count - a.count);
-  const max = ranked[0].count;
+  const ranked = BOOKS.map((b) => ({ book: b, count: tally[b] })).sort((a, b) => b.count - a.count);
+  const max = ranked[0].count || 1;
 
   return (
     <div className="board-card rounded-lg p-4 mb-6">
@@ -505,19 +543,19 @@ function Leaderboard() {
           Best Book Overall
         </h2>
         <span className="text-xs kickoff-text">
-          {total} markets across {GAMES.length} games &mdash; spreads, totals, moneylines &amp; props
+          {total} markets across {games.length} games &mdash; spreads, totals &amp; moneylines
         </span>
       </div>
       <div className="space-y-2">
         {ranked.map((r, i) => (
           <div key={r.book} className="flex items-center gap-3">
             <div className="w-24 font-mono text-sm side-label">
-              {i === 0 && <span style={{ color: 'var(--amber-text)' }}>&#9733; </span>}
+              {i === 0 && r.count > 0 && <span style={{ color: 'var(--amber-text)' }}>&#9733; </span>}
               {r.book}
             </div>
             <div className="flex-1 leaderboard-track rounded">
               <div
-                className={`leaderboard-bar rounded ${i === 0 ? 'leaderboard-bar-top' : ''}`}
+                className={`leaderboard-bar rounded ${i === 0 && r.count > 0 ? 'leaderboard-bar-top' : ''}`}
                 style={{ width: `${(r.count / max) * 100}%` }}
               />
             </div>
@@ -531,60 +569,125 @@ function Leaderboard() {
   );
 }
 
-function RowGroup({ label }) {
-  return (
-    <div className="px-3 py-1 text-xs uppercase tracking-widest row-group-label">{label}</div>
-  );
-}
+function FuturesTable({ teams }) {
+  const cols = `1fr repeat(${BOOKS.length}, 1fr)`;
 
-function Row({ sideLabel, row, bestPrice, bestLine, cols, withLine, linePrefix }) {
-  return (
-    <div className="grid items-center border-row" style={{ gridTemplateColumns: cols }}>
-      <div className="px-3 py-1 text-sm font-mono side-label">{sideLabel}</div>
-      {BOOKS.map((b) => {
-        const display = linePrefix ? `${linePrefix}${row[b].line}` : fmtLine(row[b].line);
-        return (
-          <OddsCell
-            key={b}
-            price={row[b].price}
-            line={withLine ? display : undefined}
-            isBestPrice={b === bestPrice}
-            isBestLine={b === bestLine}
-          />
-        );
-      })}
-    </div>
-  );
-}
+  if (teams.length === 0) {
+    return (
+      <div className="board-card rounded-lg p-4 mb-6 text-sm kickoff-text">
+        No futures market is currently available from the API for this sport.
+      </div>
+    );
+  }
 
-function MoneylineRow({ sideLabel, row, best, cols }) {
   return (
-    <div className="grid items-center border-row" style={{ gridTemplateColumns: cols }}>
-      <div className="px-3 py-1 text-sm font-mono side-label">{sideLabel}</div>
-      {BOOKS.map((b) => (
-        <div
-          key={b}
-          className={`flex items-center justify-center py-2 px-1 rounded font-mono text-sm ${
-            b === best ? 'odds-best' : ''
-          }`}
-        >
-          {fmtPrice(row[b])}
+    <div className="board-card rounded-lg overflow-hidden mb-5">
+      <div className="px-4 py-3 board-card-header">
+        <span className="font-display text-base tracking-wide uppercase">Super Bowl Winner &mdash; Outright Odds</span>
+      </div>
+      <div className="overflow-x-auto">
+        <div style={{ minWidth: '460px' }}>
+          <div className="grid" style={{ gridTemplateColumns: cols }}>
+            <div className="px-3 py-2 text-xs label-text">Team</div>
+            {BOOKS.map((b) => (
+              <div key={b} className="px-1 py-2 text-center text-xs font-mono book-header">
+                {BOOK_SHORT[b]}
+              </div>
+            ))}
+          </div>
+          {teams.map((t) => {
+            const best = bestMLBook(t.prices);
+            return (
+              <div key={t.team} className="grid items-center border-row" style={{ gridTemplateColumns: cols }}>
+                <div className="px-3 py-2 text-sm side-label flex items-center gap-2">
+                  <span className="team-stripe" style={{ background: t.color }} />
+                  {t.team}
+                </div>
+                {BOOKS.map((b) => {
+                  if (t.prices[b] === undefined) return <EmptyCell key={b} />;
+                  return (
+                    <div
+                      key={b}
+                      className={`flex items-center justify-center py-2 px-1 rounded font-mono text-sm ${
+                        b === best ? 'odds-best' : ''
+                      }`}
+                    >
+                      {fmtPrice(t.prices[b])}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
         </div>
-      ))}
+      </div>
     </div>
   );
 }
 
-export default function NFLOddsBoard() {
+export default function App() {
+  const [activeId, setActiveId] = useState(SPORTS[0].id);
+  const [cache, setCache] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [quota, setQuota] = useState(null);
   const [seconds, setSeconds] = useState(0);
+
+  const activeSport = SPORTS.find((s) => s.id === activeId);
+
+  const fetchSport = useCallback(async (sport) => {
+    if (!API_KEY) {
+      setError('Missing API key. Add VITE_ODDS_API_KEY to your .env file and restart the dev server.');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const market = sport.type === 'futures' ? 'outrights' : 'h2h,spreads,totals';
+      const url = `https://api.the-odds-api.com/v4/sports/${sport.sportKey}/odds?regions=us&markets=${market}&oddsFormat=american&apiKey=${API_KEY}`;
+      const res = await fetch(url);
+      const remaining = res.headers.get('x-requests-remaining');
+      if (remaining !== null) setQuota(remaining);
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`API error (${res.status}): ${text.slice(0, 200)}`);
+      }
+      const json = await res.json();
+      setCache((prev) => ({ ...prev, [sport.id]: { data: json, fetchedAt: Date.now() } }));
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!cache[activeId]) fetchSport(activeSport);
+  }, [activeId, cache, activeSport, fetchSport]);
 
   useEffect(() => {
     const t = setInterval(() => setSeconds((s) => s + 1), 1000);
     return () => clearInterval(t);
   }, []);
 
-  const mm = String(Math.floor(seconds / 60)).padStart(2, '0');
-  const ss = String(seconds % 60).padStart(2, '0');
+  const entry = cache[activeId];
+  const ageSeconds = entry ? Math.floor((Date.now() - entry.fetchedAt) / 1000) : null;
+  const mm = ageSeconds !== null ? String(Math.floor(ageSeconds / 60)).padStart(2, '0') : '--';
+  const ss = ageSeconds !== null ? String(ageSeconds % 60).padStart(2, '0') : '--';
+
+  let games = [];
+  let futures = [];
+  if (entry) {
+    if (activeSport.type === 'game') {
+      games = (entry.data || [])
+        .slice()
+        .sort((a, b) => new Date(a.commence_time) - new Date(b.commence_time))
+        .slice(0, MAX_GAMES)
+        .map(transformGame);
+    } else {
+      futures = transformFutures(entry.data);
+    }
+  }
 
   return (
     <div className="board-root min-h-screen px-4 py-6 sm:px-8">
@@ -609,28 +712,13 @@ export default function NFLOddsBoard() {
         .font-display { font-family: 'Oswald', sans-serif; }
         .font-mono { font-family: 'IBM Plex Mono', monospace; }
 
-        .board-card {
-          background: var(--card-bg);
-          border: 1px solid var(--card-border);
-        }
-        .board-card-header {
-          background: var(--card-header-bg);
-          border-bottom: 1px solid var(--card-border);
-        }
-        .team-stripe {
-          display: inline-block;
-          width: 4px;
-          height: 16px;
-          border-radius: 1px;
-        }
+        .board-card { background: var(--card-bg); border: 1px solid var(--card-border); }
+        .board-card-header { background: var(--card-header-bg); border-bottom: 1px solid var(--card-border); }
+        .team-stripe { display: inline-block; width: 4px; height: 16px; border-radius: 1px; flex-shrink: 0; }
         .kickoff-text { color: var(--text-muted); }
         .label-text { color: var(--text-muted); }
         .book-header { color: var(--text-muted); letter-spacing: 0.05em; }
-        .row-group-label {
-          color: var(--text-muted);
-          background: rgba(255,255,255,0.02);
-          letter-spacing: 0.15em;
-        }
+        .row-group-label { color: var(--text-muted); background: rgba(255,255,255,0.02); letter-spacing: 0.15em; }
         .border-row { border-top: 1px solid var(--row-border); }
         .side-label { color: var(--text-primary); }
         .line-muted { color: var(--text-muted); }
@@ -642,59 +730,132 @@ export default function NFLOddsBoard() {
         }
         .best-book-badge { color: var(--amber-text); }
         .prop-label { color: var(--text-primary); background: rgba(255,255,255,0.015); }
+        .props-toggle-btn {
+          width: 100%;
+          text-align: left;
+          font-family: 'IBM Plex Mono', monospace;
+          font-size: 0.75rem;
+          padding: 0.5rem 0.75rem;
+          background: transparent;
+          border: none;
+          color: var(--text-muted);
+          cursor: pointer;
+        }
+        .props-toggle-btn:hover { color: var(--amber-text); }
 
-        .leaderboard-track {
-          height: 10px;
-          background: var(--row-border);
-          overflow: hidden;
-        }
-        .leaderboard-bar {
-          height: 100%;
-          background: var(--text-muted);
-          opacity: 0.45;
-        }
-        .leaderboard-bar-top {
-          background: var(--amber);
-          opacity: 1;
-        }
+        .leaderboard-track { height: 10px; background: var(--row-border); overflow: hidden; }
+        .leaderboard-bar { height: 100%; background: var(--text-muted); opacity: 0.45; }
+        .leaderboard-bar-top { background: var(--amber); opacity: 1; }
 
         .live-dot {
-          display: inline-block;
-          width: 7px;
-          height: 7px;
-          border-radius: 50%;
-          background: var(--amber);
-          animation: pulse 1.6s ease-in-out infinite;
+          display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+          background: var(--amber); animation: pulse 1.6s ease-in-out infinite;
         }
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.35; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+        .tab-btn {
+          font-family: 'Oswald', sans-serif;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+          font-size: 0.8rem;
+          padding: 0.5rem 1rem;
+          border-radius: 6px;
+          border: 1px solid var(--card-border);
+          background: var(--card-bg);
+          color: var(--text-muted);
+          cursor: pointer;
+        }
+        .tab-btn.active {
+          color: var(--amber-text);
+          border-color: rgba(255, 182, 39, 0.35);
+          background: var(--amber-soft);
+        }
+        .refresh-btn {
+          font-family: 'IBM Plex Mono', monospace;
+          font-size: 0.75rem;
+          padding: 0.4rem 0.8rem;
+          border-radius: 6px;
+          border: 1px solid var(--card-border);
+          background: var(--card-bg);
+          color: var(--text-muted);
+          cursor: pointer;
+        }
+        .refresh-btn:hover { color: var(--amber-text); border-color: rgba(255, 182, 39, 0.35); }
+        .error-box {
+          border: 1px solid rgba(229, 90, 90, 0.4);
+          background: rgba(229, 90, 90, 0.08);
+          color: #FFB4B4;
+          padding: 0.75rem 1rem;
+          border-radius: 8px;
+          font-size: 0.85rem;
+          margin-bottom: 1.5rem;
         }
       `}</style>
 
       <div className="max-w-3xl mx-auto">
-        <div className="flex items-center justify-between mb-1">
-          <h1 className="font-display text-2xl tracking-widest uppercase">NFL Odds Board</h1>
+        <div className="flex items-center justify-between mb-1 flex-wrap gap-2">
+          <h1 className="font-display text-2xl tracking-widest uppercase">Odds Board</h1>
           <div className="flex items-center gap-2 font-mono text-xs kickoff-text">
             <span className="live-dot" />
-            synced {mm}:{ss} ago
+            {entry ? `updated ${mm}:${ss} ago` : loading ? 'loading…' : 'no data yet'}
           </div>
         </div>
-        <p className="text-sm kickoff-text mb-6">
-          Comparing spreads, totals, moneylines &amp; player props across {BOOKS.join(', ')}.{' '}
-          <span style={{ color: 'var(--amber-text)' }}>Amber</span> marks the best price for each
-          line; the small amber number marks the best point spread, total, or prop line.
+
+        <p className="text-sm kickoff-text mb-4">
+          Live odds from DraftKings, FanDuel, BetMGM &amp; Caesars via The Odds API.{' '}
+          <span style={{ color: 'var(--amber-text)' }}>Amber</span> marks the best price; the small
+          amber number marks the best point spread or total. Kickoff times shown in your local time.
         </p>
 
-        <Leaderboard />
+        <div className="flex items-center justify-between flex-wrap gap-2 mb-5">
+          <div className="flex gap-2 flex-wrap">
+            {SPORTS.map((s) => (
+              <button
+                key={s.id}
+                className={`tab-btn ${activeId === s.id ? 'active' : ''}`}
+                onClick={() => setActiveId(s.id)}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+          <button className="refresh-btn" onClick={() => fetchSport(activeSport)} disabled={loading}>
+            {loading ? 'Refreshing…' : 'Refresh'}
+          </button>
+        </div>
 
-        {GAMES.map((g) => (
-          <GameCard key={g.id} game={g} />
-        ))}
+        {error && <div className="error-box">{error}</div>}
 
-        <p className="text-xs kickoff-text mt-6 text-center">
-          Placeholder data — shaped to match The Odds API response format for an easy live swap.
-        </p>
+        {!error && loading && !entry && (
+          <div className="text-sm kickoff-text mb-6">Fetching {activeSport.label} odds…</div>
+        )}
+
+        {!error && entry && activeSport.type === 'game' && games.length === 0 && (
+          <div className="text-sm kickoff-text mb-6">No upcoming {activeSport.label} games found right now.</div>
+        )}
+
+        {!error && entry && activeSport.type === 'game' && games.length > 0 && (
+          <>
+            <Leaderboard games={games} />
+            {games.map((g) => (
+              <GameCard
+                key={g.id}
+                game={g}
+                sportKey={activeSport.sportKey}
+                propMarkets={PROP_MARKETS[activeSport.id]}
+                onQuota={setQuota}
+              />
+            ))}
+          </>
+        )}
+
+        {!error && entry && activeSport.type === 'futures' && <FuturesTable teams={futures} />}
+
+        {quota !== null && (
+          <p className="text-xs kickoff-text mt-4 text-center">
+            The Odds API credits remaining this month: {quota}
+          </p>
+        )}
       </div>
     </div>
   );
