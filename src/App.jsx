@@ -35,9 +35,9 @@ const PROP_MARKETS = {
     { key: 'player_assists', label: 'Assists' },
   ],
   mlb: [
-    { key: 'player_hits', label: 'Hits' },
-    { key: 'player_strikeouts', label: 'Strikeouts' },
-    { key: 'player_home_runs', label: 'Home Runs' },
+    { key: 'batter_hits', label: 'Hits' },
+    { key: 'pitcher_strikeouts', label: 'Strikeouts' },
+    { key: 'batter_home_runs', label: 'Home Runs' },
   ],
 };
 
