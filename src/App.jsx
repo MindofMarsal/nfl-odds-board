@@ -695,17 +695,19 @@ export default function App() {
         @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap');
 
         .board-root {
-          --board-bg: #F5F3ED;
-          --card-bg: #FFFFFF;
-          --card-header-bg: #F1EDE4;
-          --card-border: #E4DFD3;
-          --row-border: #ECE7DC;
-          --text-primary: #20271F;
-          --text-muted: #8C8C80;
-          --amber: #1FA463;
-          --amber-soft: rgba(31, 164, 99, 0.12);
-          --amber-text: #15803D;
-          background: var(--board-bg);
+          --board-bg: #0E1F16;
+          --card-bg: #16301F;
+          --card-header-bg: #1C3B26;
+          --card-border: #2C4D38;
+          --row-border: #234432;
+          --text-primary: #F4F1E3;
+          --text-muted: #93AC9C;
+          --amber: #FFC832;
+          --amber-soft: rgba(255, 200, 50, 0.14);
+          --amber-text: #FFDD7A;
+          background:
+            radial-gradient(ellipse 1100px 550px at 50% -10%, rgba(255, 200, 50, 0.10), transparent 60%),
+            var(--board-bg);
           color: var(--text-primary);
           font-family: 'Inter', sans-serif;
         }
@@ -715,14 +717,14 @@ export default function App() {
         .board-card {
           background: var(--card-bg);
           border: 1px solid var(--card-border);
-          box-shadow: 0 1px 3px rgba(32, 39, 31, 0.05);
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
         }
         .board-card-header { background: var(--card-header-bg); border-bottom: 1px solid var(--card-border); }
         .team-stripe { display: inline-block; width: 4px; height: 16px; border-radius: 1px; flex-shrink: 0; }
         .kickoff-text { color: var(--text-muted); }
         .label-text { color: var(--text-muted); }
         .book-header { color: var(--text-muted); letter-spacing: 0.05em; }
-        .row-group-label { color: var(--text-muted); background: rgba(32, 39, 31, 0.025); letter-spacing: 0.15em; }
+        .row-group-label { color: var(--text-muted); background: rgba(0, 0, 0, 0.12); letter-spacing: 0.15em; }
         .border-row { border-top: 1px solid var(--row-border); }
         .side-label { color: var(--text-primary); }
         .line-muted { color: var(--text-muted); }
@@ -730,10 +732,10 @@ export default function App() {
         .odds-best {
           background: var(--amber-soft);
           color: var(--amber-text);
-          box-shadow: inset 0 0 0 1px rgba(31, 164, 99, 0.35);
+          box-shadow: inset 0 0 0 1px rgba(255, 200, 50, 0.4), 0 0 10px rgba(255, 200, 50, 0.12);
         }
         .best-book-badge { color: var(--amber-text); }
-        .prop-label { color: var(--text-primary); background: rgba(32, 39, 31, 0.02); }
+        .prop-label { color: var(--text-primary); background: rgba(0, 0, 0, 0.1); }
         .props-toggle-btn {
           width: 100%;
           text-align: left;
@@ -753,7 +755,9 @@ export default function App() {
 
         .live-dot {
           display: inline-block; width: 7px; height: 7px; border-radius: 50%;
-          background: var(--amber); animation: pulse 1.6s ease-in-out infinite;
+          background: var(--amber);
+          box-shadow: 0 0 6px rgba(255, 200, 50, 0.7);
+          animation: pulse 1.6s ease-in-out infinite;
         }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 
@@ -771,7 +775,7 @@ export default function App() {
         }
         .tab-btn.active {
           color: var(--amber-text);
-          border-color: rgba(31, 164, 99, 0.35);
+          border-color: rgba(255, 200, 50, 0.4);
           background: var(--amber-soft);
         }
         .refresh-btn {
@@ -784,11 +788,11 @@ export default function App() {
           color: var(--text-muted);
           cursor: pointer;
         }
-        .refresh-btn:hover { color: var(--amber-text); border-color: rgba(31, 164, 99, 0.35); }
+        .refresh-btn:hover { color: var(--amber-text); border-color: rgba(255, 200, 50, 0.4); }
         .error-box {
-          border: 1px solid rgba(220, 38, 38, 0.3);
-          background: rgba(220, 38, 38, 0.06);
-          color: #B91C1C;
+          border: 1px solid rgba(229, 90, 90, 0.4);
+          background: rgba(229, 90, 90, 0.08);
+          color: #FFB4B4;
           padding: 0.75rem 1rem;
           border-radius: 8px;
           font-size: 0.85rem;
@@ -807,8 +811,8 @@ export default function App() {
 
         <p className="text-sm kickoff-text mb-4">
           Live odds from DraftKings, FanDuel, BetMGM &amp; Caesars via The Odds API.{' '}
-          <span style={{ color: 'var(--amber-text)' }}>Green</span> marks the best price; the small
-          green number marks the best point spread or total. Kickoff times shown in your local time.
+          <span style={{ color: 'var(--amber-text)' }}>Gold</span> marks the best price; the small
+          gold number marks the best point spread or total. Kickoff times shown in your local time.
         </p>
 
         <div className="flex items-center justify-between flex-wrap gap-2 mb-5">
