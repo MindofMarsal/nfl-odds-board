@@ -2,18 +2,15 @@ import React, { useState, useEffect, useCallback } from 'react';
 
 const API_KEY = import.meta.env.VITE_ODDS_API_KEY;
 
-const BOOKS = ['DraftKings', 'FanDuel', 'BetMGM', 'Caesars', 'HardRock'];
-const BOOK_SHORT = { DraftKings: 'DK', FanDuel: 'FD', BetMGM: 'MGM', Caesars: 'CZR', HardRock: 'HRB' };
-// The Odds API bookmaker "key" values to match against (lowercase). Caesars
-// has historically been listed under the William Hill US key. Hard Rock Bet's
-// exact key isn't confirmed, so a few likely candidates are listed — only one
-// needs to match.
+const BOOKS = ['DraftKings', 'FanDuel', 'BetMGM', 'BetRivers', 'Bovada'];
+const BOOK_SHORT = { DraftKings: 'DK', FanDuel: 'FD', BetMGM: 'MGM', BetRivers: 'RIV', Bovada: 'BOV' };
+// The Odds API bookmaker "key" values to match against (lowercase).
 const BOOK_KEYS = {
   DraftKings: ['draftkings'],
   FanDuel: ['fanduel'],
   BetMGM: ['betmgm'],
-  Caesars: ['williamhill_us', 'caesars'],
-  HardRock: ['hardrockbet', 'hardrock', 'hard_rock_bet', 'hardrock_bet'],
+  BetRivers: ['betrivers'],
+  Bovada: ['bovada'],
 };
 
 // Header colors for each sportsbook column, evoking each book's branding.
@@ -23,8 +20,8 @@ const BOOK_COLORS = {
   DraftKings: '#16181D',
   FanDuel: '#1565C0',
   BetMGM: '#A6824B',
-  Caesars: '#9C1C2E',
-  HardRock: '#7C2D8E',
+  BetRivers: '#0E7490',
+  Bovada: '#7C2D2D',
 };
 
 const SPORTS = [
@@ -226,6 +223,19 @@ function transformPlayerProps(eventData, marketDefs) {
   return Object.values(props).filter(
     (p) => Object.keys(p.over).length > 0 || Object.keys(p.under).length > 0
   );
+}
+
+// Lists every distinct bookmaker key/title actually present in a response —
+// useful for confirming what The Odds API is sending back for this account.
+function getReturnedBookmakers(data, isFutures) {
+  const seen = new Map();
+  const events = isFutures ? (data && data[0] ? [data[0]] : []) : data || [];
+  events.forEach((event) => {
+    (event.bookmakers || []).forEach((b) => {
+      if (!seen.has(b.key)) seen.set(b.key, b.title);
+    });
+  });
+  return Array.from(seen.entries());
 }
 
 // Best price = max() works for American odds regardless of sign.
@@ -696,6 +706,7 @@ export default function App() {
   const [error, setError] = useState(null);
   const [quota, setQuota] = useState(null);
   const [seconds, setSeconds] = useState(0);
+  const [showDebug, setShowDebug] = useState(false);
 
   const activeSport = SPORTS.find((s) => s.id === activeId);
 
@@ -880,7 +891,7 @@ export default function App() {
         </div>
 
         <p className="text-sm kickoff-text mb-4">
-          Live odds from DraftKings, FanDuel, BetMGM, Caesars &amp; Hard Rock Bet via The Odds API.
+          Live odds from DraftKings, FanDuel, BetMGM, BetRivers &amp; Bovada via The Odds API.
           The <span style={{ color: 'var(--amber-text)' }}>green &quot;Best&quot;</span> column and
           highlighted cells show the top price across all five books for each line. Kickoff times
           shown in your local time.
@@ -934,6 +945,27 @@ export default function App() {
           <p className="text-xs kickoff-text mt-4 text-center">
             The Odds API credits remaining this month: {quota}
           </p>
+        )}
+
+        {entry && (
+          <div className="text-center mt-3">
+            <button className="refresh-btn" onClick={() => setShowDebug((v) => !v)}>
+              {showDebug ? 'Hide' : 'Show'} raw bookmaker list (debug)
+            </button>
+            {showDebug && (
+              <div className="board-card rounded-lg p-3 mt-2 text-left text-xs font-mono kickoff-text">
+                {getReturnedBookmakers(entry.data, activeSport.type === 'futures').length === 0 ? (
+                  <div>No bookmakers returned for this sport right now.</div>
+                ) : (
+                  getReturnedBookmakers(entry.data, activeSport.type === 'futures').map(([key, title]) => (
+                    <div key={key}>
+                      {title} <span className="line-muted">({key})</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>
