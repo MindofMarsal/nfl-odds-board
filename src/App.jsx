@@ -13,6 +13,14 @@ const BOOK_KEYS = {
   Caesars: ['williamhill_us', 'caesars'],
 };
 
+// Header colors for each sportsbook column, evoking each book's branding.
+const BOOK_COLORS = {
+  DraftKings: '#1F8A3B',
+  FanDuel: '#1565C0',
+  BetMGM: '#A6824B',
+  Caesars: '#9C1C2E',
+};
+
 const SPORTS = [
   { id: 'nfl', label: 'NFL', sportKey: 'americanfootball_nfl', type: 'game' },
   { id: 'nba', label: 'NBA', sportKey: 'basketball_nba', type: 'game' },
@@ -266,7 +274,7 @@ function tallyBooks(bookList) {
 }
 
 function EmptyCell() {
-  return <div className="flex items-center justify-center py-2 px-1 text-sm line-muted">—</div>;
+  return <div className="flex items-center justify-center py-2 px-1 text-xs no-lines">No Lines</div>;
 }
 
 function OddsCell({ price, line, isBestPrice, isBestLine }) {
@@ -277,11 +285,34 @@ function OddsCell({ price, line, isBestPrice, isBestLine }) {
       }`}
     >
       {line !== undefined && (
-        <span className={`text-xs leading-none mb-0.5 ${isBestLine ? 'line-best' : 'line-muted'}`}>
+        <span className={`text-xs leading-none mb-0.5 ${isBestPrice ? 'best-cell-line' : isBestLine ? 'line-best' : 'line-muted'}`}>
           {line}
         </span>
       )}
       <span className="font-mono text-sm leading-none">{fmtPrice(price)}</span>
+    </div>
+  );
+}
+
+// The highlighted "Best Line" column — shows the single best price (and best
+// line, where applicable) found across all books for this row.
+function BestCell({ row, bestKey, withLine, linePrefix, isMoneyline }) {
+  if (!bestKey) {
+    return <div className="flex items-center justify-center py-2 px-1 text-xs no-lines">—</div>;
+  }
+  if (isMoneyline) {
+    return (
+      <div className="flex items-center justify-center py-2 px-1 font-mono text-sm rounded best-cell">
+        {fmtPrice(row[bestKey])}
+      </div>
+    );
+  }
+  const cell = row[bestKey];
+  const display = linePrefix ? `${linePrefix}${cell.line}` : fmtLine(cell.line);
+  return (
+    <div className="flex flex-col items-center justify-center py-2 px-1 rounded best-cell">
+      {withLine && <span className="text-xs leading-none mb-0.5 best-cell-line">{display}</span>}
+      <span className="font-mono text-sm leading-none">{fmtPrice(cell.price)}</span>
     </div>
   );
 }
@@ -292,10 +323,11 @@ function RowGroup({ label }) {
   );
 }
 
-function Row({ sideLabel, row, bestPrice, bestLine, cols, withLine, linePrefix }) {
+function Row({ sideLabel, row, bestPrice, bestLine, cols, withLine, linePrefix, stripe }) {
   return (
-    <div className="grid items-center border-row" style={{ gridTemplateColumns: cols }}>
+    <div className={`grid items-center border-row ${stripe}`} style={{ gridTemplateColumns: cols }}>
       <div className="px-3 py-1 text-sm font-mono side-label">{sideLabel}</div>
+      <BestCell row={row} bestKey={bestPrice} withLine={withLine} linePrefix={linePrefix} />
       {BOOKS.map((b) => {
         const cell = row[b];
         if (!cell) return <EmptyCell key={b} />;
@@ -314,10 +346,11 @@ function Row({ sideLabel, row, bestPrice, bestLine, cols, withLine, linePrefix }
   );
 }
 
-function MoneylineRow({ sideLabel, row, best, cols }) {
+function MoneylineRow({ sideLabel, row, best, cols, stripe }) {
   return (
-    <div className="grid items-center border-row" style={{ gridTemplateColumns: cols }}>
+    <div className={`grid items-center border-row ${stripe}`} style={{ gridTemplateColumns: cols }}>
       <div className="px-3 py-1 text-sm font-mono side-label">{sideLabel}</div>
+      <BestCell row={row} bestKey={best} isMoneyline />
       {BOOKS.map((b) => {
         if (row[b] === undefined) return <EmptyCell key={b} />;
         return (
@@ -336,7 +369,9 @@ function MoneylineRow({ sideLabel, row, best, cols }) {
 }
 
 function GameCard({ game, sportKey, propMarkets, onQuota }) {
-  const cols = `110px repeat(${BOOKS.length}, 1fr)`;
+  const cols = `90px 76px repeat(${BOOKS.length}, 1fr)`;
+  let stripeIndex = 0;
+  const stripe = () => (stripeIndex++ % 2 === 0 ? 'stripe-a' : 'stripe-b');
 
   const [showProps, setShowProps] = useState(false);
   const [props, setProps] = useState(null);
@@ -418,8 +453,15 @@ function GameCard({ game, sportKey, propMarkets, onQuota }) {
         <div style={{ minWidth: '460px' }}>
           <div className="grid" style={{ gridTemplateColumns: cols }}>
             <div className="px-3 py-2 text-xs label-text">Market</div>
+            <div className="px-1 py-2 text-center text-xs font-display tracking-wide uppercase best-line-header">
+              Best
+            </div>
             {BOOKS.map((b) => (
-              <div key={b} className="px-1 py-2 text-center text-xs font-mono book-header">
+              <div
+                key={b}
+                className="px-1 py-2 text-center text-xs font-mono book-header"
+                style={{ background: BOOK_COLORS[b], color: '#fff' }}
+              >
                 {BOOK_SHORT[b]}
               </div>
             ))}
@@ -433,6 +475,7 @@ function GameCard({ game, sportKey, propMarkets, onQuota }) {
             bestLine={spreadAwayLineBest}
             cols={cols}
             withLine
+            stripe={stripe()}
           />
           <Row
             sideLabel={teamShort(game.home.name)}
@@ -441,6 +484,7 @@ function GameCard({ game, sportKey, propMarkets, onQuota }) {
             bestLine={spreadHomeLineBest}
             cols={cols}
             withLine
+            stripe={stripe()}
           />
 
           <RowGroup label="Total" />
@@ -452,6 +496,7 @@ function GameCard({ game, sportKey, propMarkets, onQuota }) {
             cols={cols}
             withLine
             linePrefix="o"
+            stripe={stripe()}
           />
           <Row
             sideLabel="Under"
@@ -461,11 +506,12 @@ function GameCard({ game, sportKey, propMarkets, onQuota }) {
             cols={cols}
             withLine
             linePrefix="u"
+            stripe={stripe()}
           />
 
           <RowGroup label="Moneyline" />
-          <MoneylineRow sideLabel={teamShort(game.away.name)} row={game.ml.away} best={mlAwayBest} cols={cols} />
-          <MoneylineRow sideLabel={teamShort(game.home.name)} row={game.ml.home} best={mlHomeBest} cols={cols} />
+          <MoneylineRow sideLabel={teamShort(game.away.name)} row={game.ml.away} best={mlAwayBest} cols={cols} stripe={stripe()} />
+          <MoneylineRow sideLabel={teamShort(game.home.name)} row={game.ml.home} best={mlHomeBest} cols={cols} stripe={stripe()} />
 
           {propMarkets && (
             <div className="border-row">
@@ -499,6 +545,7 @@ function GameCard({ game, sportKey, propMarkets, onQuota }) {
                         cols={cols}
                         withLine
                         linePrefix="o"
+                        stripe={stripe()}
                       />
                       <Row
                         sideLabel="Under"
@@ -508,6 +555,7 @@ function GameCard({ game, sportKey, propMarkets, onQuota }) {
                         cols={cols}
                         withLine
                         linePrefix="u"
+                        stripe={stripe()}
                       />
                     </React.Fragment>
                   ))}
@@ -570,7 +618,9 @@ function Leaderboard({ games }) {
 }
 
 function FuturesTable({ teams }) {
-  const cols = `1fr repeat(${BOOKS.length}, 1fr)`;
+  const cols = `1fr 76px repeat(${BOOKS.length}, 1fr)`;
+  let stripeIndex = 0;
+  const stripe = () => (stripeIndex++ % 2 === 0 ? 'stripe-a' : 'stripe-b');
 
   if (teams.length === 0) {
     return (
@@ -589,8 +639,15 @@ function FuturesTable({ teams }) {
         <div style={{ minWidth: '460px' }}>
           <div className="grid" style={{ gridTemplateColumns: cols }}>
             <div className="px-3 py-2 text-xs label-text">Team</div>
+            <div className="px-1 py-2 text-center text-xs font-display tracking-wide uppercase best-line-header">
+              Best
+            </div>
             {BOOKS.map((b) => (
-              <div key={b} className="px-1 py-2 text-center text-xs font-mono book-header">
+              <div
+                key={b}
+                className="px-1 py-2 text-center text-xs font-mono book-header"
+                style={{ background: BOOK_COLORS[b], color: '#fff' }}
+              >
                 {BOOK_SHORT[b]}
               </div>
             ))}
@@ -598,11 +655,12 @@ function FuturesTable({ teams }) {
           {teams.map((t) => {
             const best = bestMLBook(t.prices);
             return (
-              <div key={t.team} className="grid items-center border-row" style={{ gridTemplateColumns: cols }}>
+              <div key={t.team} className={`grid items-center border-row ${stripe()}`} style={{ gridTemplateColumns: cols }}>
                 <div className="px-3 py-2 text-sm side-label flex items-center gap-2">
                   <span className="team-stripe" style={{ background: t.color }} />
                   {t.team}
                 </div>
+                <BestCell row={t.prices} bestKey={best} isMoneyline />
                 {BOOKS.map((b) => {
                   if (t.prices[b] === undefined) return <EmptyCell key={b} />;
                   return (
@@ -695,19 +753,18 @@ export default function App() {
         @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap');
 
         .board-root {
-          --board-bg: #0E1F16;
-          --card-bg: #16301F;
-          --card-header-bg: #1C3B26;
-          --card-border: #2C4D38;
-          --row-border: #234432;
-          --text-primary: #F4F1E3;
-          --text-muted: #93AC9C;
-          --amber: #FFC832;
-          --amber-soft: rgba(255, 200, 50, 0.14);
-          --amber-text: #FFDD7A;
-          background:
-            radial-gradient(ellipse 1100px 550px at 50% -10%, rgba(255, 200, 50, 0.10), transparent 60%),
-            var(--board-bg);
+          --board-bg: #F1F3F5;
+          --card-bg: #FFFFFF;
+          --card-header-bg: #FAFBFC;
+          --card-border: #E2E5E9;
+          --row-border: #ECEEF1;
+          --row-alt: #F6F7F9;
+          --text-primary: #1F2937;
+          --text-muted: #6B7280;
+          --amber: #16A34A;
+          --amber-soft: rgba(22, 163, 74, 0.12);
+          --amber-text: #15803D;
+          background: var(--board-bg);
           color: var(--text-primary);
           font-family: 'Inter', sans-serif;
         }
@@ -717,25 +774,31 @@ export default function App() {
         .board-card {
           background: var(--card-bg);
           border: 1px solid var(--card-border);
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+          box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
         }
         .board-card-header { background: var(--card-header-bg); border-bottom: 1px solid var(--card-border); }
         .team-stripe { display: inline-block; width: 4px; height: 16px; border-radius: 1px; flex-shrink: 0; }
         .kickoff-text { color: var(--text-muted); }
         .label-text { color: var(--text-muted); }
-        .book-header { color: var(--text-muted); letter-spacing: 0.05em; }
-        .row-group-label { color: var(--text-muted); background: rgba(0, 0, 0, 0.12); letter-spacing: 0.15em; }
+        .book-header { letter-spacing: 0.05em; font-weight: 600; }
+        .row-group-label { color: var(--text-muted); background: rgba(15, 23, 42, 0.03); letter-spacing: 0.15em; }
         .border-row { border-top: 1px solid var(--row-border); }
         .side-label { color: var(--text-primary); }
         .line-muted { color: var(--text-muted); }
         .line-best { color: var(--amber-text); }
+        .no-lines { color: var(--text-muted); opacity: 0.55; }
+        .stripe-a { background: var(--card-bg); }
+        .stripe-b { background: var(--row-alt); }
+
+        .best-line-header { background: var(--amber); color: #fff; }
+        .best-cell { background: var(--amber); color: #fff; }
+        .best-cell-line { color: rgba(255, 255, 255, 0.8); }
         .odds-best {
-          background: var(--amber-soft);
-          color: var(--amber-text);
-          box-shadow: inset 0 0 0 1px rgba(255, 200, 50, 0.4), 0 0 10px rgba(255, 200, 50, 0.12);
+          background: var(--amber);
+          color: #fff;
         }
         .best-book-badge { color: var(--amber-text); }
-        .prop-label { color: var(--text-primary); background: rgba(0, 0, 0, 0.1); }
+        .prop-label { color: var(--text-primary); background: rgba(15, 23, 42, 0.02); }
         .props-toggle-btn {
           width: 100%;
           text-align: left;
@@ -750,13 +813,13 @@ export default function App() {
         .props-toggle-btn:hover { color: var(--amber-text); }
 
         .leaderboard-track { height: 10px; background: var(--row-border); overflow: hidden; }
-        .leaderboard-bar { height: 100%; background: var(--text-muted); opacity: 0.45; }
+        .leaderboard-bar { height: 100%; background: var(--text-muted); opacity: 0.4; }
         .leaderboard-bar-top { background: var(--amber); opacity: 1; }
 
         .live-dot {
           display: inline-block; width: 7px; height: 7px; border-radius: 50%;
           background: var(--amber);
-          box-shadow: 0 0 6px rgba(255, 200, 50, 0.7);
+          box-shadow: 0 0 6px rgba(22, 163, 74, 0.5);
           animation: pulse 1.6s ease-in-out infinite;
         }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
@@ -775,7 +838,7 @@ export default function App() {
         }
         .tab-btn.active {
           color: var(--amber-text);
-          border-color: rgba(255, 200, 50, 0.4);
+          border-color: rgba(22, 163, 74, 0.4);
           background: var(--amber-soft);
         }
         .refresh-btn {
@@ -788,11 +851,11 @@ export default function App() {
           color: var(--text-muted);
           cursor: pointer;
         }
-        .refresh-btn:hover { color: var(--amber-text); border-color: rgba(255, 200, 50, 0.4); }
+        .refresh-btn:hover { color: var(--amber-text); border-color: rgba(22, 163, 74, 0.4); }
         .error-box {
-          border: 1px solid rgba(229, 90, 90, 0.4);
-          background: rgba(229, 90, 90, 0.08);
-          color: #FFB4B4;
+          border: 1px solid rgba(220, 38, 38, 0.3);
+          background: rgba(220, 38, 38, 0.06);
+          color: #B91C1C;
           padding: 0.75rem 1rem;
           border-radius: 8px;
           font-size: 0.85rem;
@@ -810,9 +873,10 @@ export default function App() {
         </div>
 
         <p className="text-sm kickoff-text mb-4">
-          Live odds from DraftKings, FanDuel, BetMGM &amp; Caesars via The Odds API.{' '}
-          <span style={{ color: 'var(--amber-text)' }}>Gold</span> marks the best price; the small
-          gold number marks the best point spread or total. Kickoff times shown in your local time.
+          Live odds from DraftKings, FanDuel, BetMGM &amp; Caesars via The Odds API. The{' '}
+          <span style={{ color: 'var(--amber-text)' }}>green &quot;Best&quot;</span> column and
+          highlighted cells show the top price across all four books for each line. Kickoff times
+          shown in your local time.
         </p>
 
         <div className="flex items-center justify-between flex-wrap gap-2 mb-5">
