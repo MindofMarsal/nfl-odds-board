@@ -2,23 +2,29 @@ import React, { useState, useEffect, useCallback } from 'react';
 
 const API_KEY = import.meta.env.VITE_ODDS_API_KEY;
 
-const BOOKS = ['DraftKings', 'FanDuel', 'BetMGM', 'Caesars'];
-const BOOK_SHORT = { DraftKings: 'DK', FanDuel: 'FD', BetMGM: 'MGM', Caesars: 'CZR' };
+const BOOKS = ['DraftKings', 'FanDuel', 'BetMGM', 'Caesars', 'HardRock'];
+const BOOK_SHORT = { DraftKings: 'DK', FanDuel: 'FD', BetMGM: 'MGM', Caesars: 'CZR', HardRock: 'HRB' };
 // The Odds API bookmaker "key" values to match against (lowercase). Caesars
-// has historically been listed under the William Hill US key.
+// has historically been listed under the William Hill US key. Hard Rock Bet's
+// exact key isn't confirmed, so a few likely candidates are listed — only one
+// needs to match.
 const BOOK_KEYS = {
   DraftKings: ['draftkings'],
   FanDuel: ['fanduel'],
   BetMGM: ['betmgm'],
   Caesars: ['williamhill_us', 'caesars'],
+  HardRock: ['hardrockbet', 'hardrock', 'hard_rock_bet', 'hardrock_bet'],
 };
 
 // Header colors for each sportsbook column, evoking each book's branding.
+// DraftKings uses near-black (rather than green) so it doesn't get confused
+// with the green "Best" highlight.
 const BOOK_COLORS = {
-  DraftKings: '#1F8A3B',
+  DraftKings: '#16181D',
   FanDuel: '#1565C0',
   BetMGM: '#A6824B',
   Caesars: '#9C1C2E',
+  HardRock: '#7C2D8E',
 };
 
 const SPORTS = [
@@ -450,7 +456,7 @@ function GameCard({ game, sportKey, propMarkets, onQuota }) {
       </div>
 
       <div className="overflow-x-auto">
-        <div style={{ minWidth: '460px' }}>
+        <div style={{ minWidth: '600px' }}>
           <div className="grid" style={{ gridTemplateColumns: cols }}>
             <div className="px-3 py-2 text-xs label-text">Market</div>
             <div className="px-1 py-2 text-center text-xs font-display tracking-wide uppercase best-line-header">
@@ -636,7 +642,7 @@ function FuturesTable({ teams }) {
         <span className="font-display text-base tracking-wide uppercase">Super Bowl Winner &mdash; Outright Odds</span>
       </div>
       <div className="overflow-x-auto">
-        <div style={{ minWidth: '460px' }}>
+        <div style={{ minWidth: '600px' }}>
           <div className="grid" style={{ gridTemplateColumns: cols }}>
             <div className="px-3 py-2 text-xs label-text">Team</div>
             <div className="px-1 py-2 text-center text-xs font-display tracking-wide uppercase best-line-header">
@@ -873,9 +879,9 @@ export default function App() {
         </div>
 
         <p className="text-sm kickoff-text mb-4">
-          Live odds from DraftKings, FanDuel, BetMGM &amp; Caesars via The Odds API. The{' '}
-          <span style={{ color: 'var(--amber-text)' }}>green &quot;Best&quot;</span> column and
-          highlighted cells show the top price across all four books for each line. Kickoff times
+          Live odds from DraftKings, FanDuel, BetMGM, Caesars &amp; Hard Rock Bet via The Odds API.
+          The <span style={{ color: 'var(--amber-text)' }}>green &quot;Best&quot;</span> column and
+          highlighted cells show the top price across all five books for each line. Kickoff times
           shown in your local time.
         </p>
 
