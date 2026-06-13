@@ -695,16 +695,16 @@ export default function App() {
         @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap');
 
         .board-root {
-          --board-bg: #0F1612;
-          --card-bg: #182019;
-          --card-header-bg: #1D2820;
-          --card-border: #2C3A30;
-          --row-border: #232E27;
-          --text-primary: #EDE8DC;
-          --text-muted: #8FA092;
-          --amber: #FFB627;
-          --amber-soft: rgba(255, 182, 39, 0.16);
-          --amber-text: #FFD27A;
+          --board-bg: #F5F3ED;
+          --card-bg: #FFFFFF;
+          --card-header-bg: #F1EDE4;
+          --card-border: #E4DFD3;
+          --row-border: #ECE7DC;
+          --text-primary: #20271F;
+          --text-muted: #8C8C80;
+          --amber: #1FA463;
+          --amber-soft: rgba(31, 164, 99, 0.12);
+          --amber-text: #15803D;
           background: var(--board-bg);
           color: var(--text-primary);
           font-family: 'Inter', sans-serif;
@@ -712,13 +712,17 @@ export default function App() {
         .font-display { font-family: 'Oswald', sans-serif; }
         .font-mono { font-family: 'IBM Plex Mono', monospace; }
 
-        .board-card { background: var(--card-bg); border: 1px solid var(--card-border); }
+        .board-card {
+          background: var(--card-bg);
+          border: 1px solid var(--card-border);
+          box-shadow: 0 1px 3px rgba(32, 39, 31, 0.05);
+        }
         .board-card-header { background: var(--card-header-bg); border-bottom: 1px solid var(--card-border); }
         .team-stripe { display: inline-block; width: 4px; height: 16px; border-radius: 1px; flex-shrink: 0; }
         .kickoff-text { color: var(--text-muted); }
         .label-text { color: var(--text-muted); }
         .book-header { color: var(--text-muted); letter-spacing: 0.05em; }
-        .row-group-label { color: var(--text-muted); background: rgba(255,255,255,0.02); letter-spacing: 0.15em; }
+        .row-group-label { color: var(--text-muted); background: rgba(32, 39, 31, 0.025); letter-spacing: 0.15em; }
         .border-row { border-top: 1px solid var(--row-border); }
         .side-label { color: var(--text-primary); }
         .line-muted { color: var(--text-muted); }
@@ -726,10 +730,10 @@ export default function App() {
         .odds-best {
           background: var(--amber-soft);
           color: var(--amber-text);
-          box-shadow: inset 0 0 0 1px rgba(255, 182, 39, 0.35);
+          box-shadow: inset 0 0 0 1px rgba(31, 164, 99, 0.35);
         }
         .best-book-badge { color: var(--amber-text); }
-        .prop-label { color: var(--text-primary); background: rgba(255,255,255,0.015); }
+        .prop-label { color: var(--text-primary); background: rgba(32, 39, 31, 0.02); }
         .props-toggle-btn {
           width: 100%;
           text-align: left;
@@ -767,7 +771,7 @@ export default function App() {
         }
         .tab-btn.active {
           color: var(--amber-text);
-          border-color: rgba(255, 182, 39, 0.35);
+          border-color: rgba(31, 164, 99, 0.35);
           background: var(--amber-soft);
         }
         .refresh-btn {
@@ -780,11 +784,11 @@ export default function App() {
           color: var(--text-muted);
           cursor: pointer;
         }
-        .refresh-btn:hover { color: var(--amber-text); border-color: rgba(255, 182, 39, 0.35); }
+        .refresh-btn:hover { color: var(--amber-text); border-color: rgba(31, 164, 99, 0.35); }
         .error-box {
-          border: 1px solid rgba(229, 90, 90, 0.4);
-          background: rgba(229, 90, 90, 0.08);
-          color: #FFB4B4;
+          border: 1px solid rgba(220, 38, 38, 0.3);
+          background: rgba(220, 38, 38, 0.06);
+          color: #B91C1C;
           padding: 0.75rem 1rem;
           border-radius: 8px;
           font-size: 0.85rem;
@@ -803,8 +807,8 @@ export default function App() {
 
         <p className="text-sm kickoff-text mb-4">
           Live odds from DraftKings, FanDuel, BetMGM &amp; Caesars via The Odds API.{' '}
-          <span style={{ color: 'var(--amber-text)' }}>Amber</span> marks the best price; the small
-          amber number marks the best point spread or total. Kickoff times shown in your local time.
+          <span style={{ color: 'var(--amber-text)' }}>Green</span> marks the best price; the small
+          green number marks the best point spread or total. Kickoff times shown in your local time.
         </p>
 
         <div className="flex items-center justify-between flex-wrap gap-2 mb-5">
