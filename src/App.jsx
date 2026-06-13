@@ -29,7 +29,19 @@ const SPORTS = [
   { id: 'nba', label: 'NBA', sportKey: 'basketball_nba', type: 'game' },
   { id: 'mlb', label: 'MLB', sportKey: 'baseball_mlb', type: 'game' },
   { id: 'nfl_futures', label: 'NFL Futures', sportKey: 'americanfootball_nfl_super_bowl_winner', type: 'futures' },
+  { id: 'fantasy', label: 'Fantasy ADP', type: 'fantasy' },
 ];
+
+// FantasyFootballCalculator's free, no-key ADP API: a single "consensus"
+// source (their own mock draft pool), with a few scoring/format views.
+const FANTASY_FORMATS = [
+  { id: 'standard', label: 'Standard' },
+  { id: 'ppr', label: 'PPR' },
+  { id: '2qb', label: '2QB / Superflex' },
+  { id: 'dynasty', label: 'Dynasty' },
+  { id: 'rookie', label: 'Rookie' },
+];
+const FANTASY_TEAM_SIZES = [8, 10, 12, 14];
 
 // Player prop markets fetched per-game, on demand, when the user clicks
 // "Show player props" on a game card. Keeping this list short keeps each
@@ -699,6 +711,132 @@ function FuturesTable({ teams }) {
   );
 }
 
+function FantasyAdpTab() {
+  const [format, setFormat] = useState('standard');
+  const [teamSize, setTeamSize] = useState(12);
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [showDebug, setShowDebug] = useState(false);
+
+  const fetchAdp = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const year = new Date().getFullYear();
+      const url = `/api/adp?format=${format}&teams=${teamSize}&year=${year}`;
+      const res = await fetch(url);
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`API error (${res.status}): ${text.slice(0, 150)}`);
+      }
+      const json = await res.json();
+      setData(json);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [format, teamSize]);
+
+  useEffect(() => {
+    fetchAdp();
+  }, [fetchAdp]);
+
+  const players = data?.players || [];
+  const cols = '48px 1fr 56px 60px 70px 90px';
+
+  return (
+    <div>
+      <p className="text-sm kickoff-text mb-4">
+        Consensus Average Draft Position from FantasyFootballCalculator&apos;s mock draft pool —
+        a single community-sourced ranking (not yet broken out by individual platform).
+      </p>
+
+      <div className="flex items-center justify-between flex-wrap gap-2 mb-5">
+        <div className="flex gap-2 flex-wrap items-center">
+          <select className="select-control" value={format} onChange={(e) => setFormat(e.target.value)}>
+            {FANTASY_FORMATS.map((f) => (
+              <option key={f.id} value={f.id}>{f.label}</option>
+            ))}
+          </select>
+          <select className="select-control" value={teamSize} onChange={(e) => setTeamSize(Number(e.target.value))}>
+            {FANTASY_TEAM_SIZES.map((t) => (
+              <option key={t} value={t}>{t}-team</option>
+            ))}
+          </select>
+        </div>
+        <button className="refresh-btn" onClick={fetchAdp} disabled={loading}>
+          {loading ? 'Refreshing…' : 'Refresh'}
+        </button>
+      </div>
+
+      {error && <div className="error-box">{error}</div>}
+
+      {!error && loading && !data && (
+        <div className="text-sm kickoff-text mb-6">Fetching ADP data…</div>
+      )}
+
+      {!error && data && players.length === 0 && (
+        <div className="text-sm kickoff-text mb-6">No ADP data returned for this format/team size.</div>
+      )}
+
+      {!error && players.length > 0 && (
+        <div className="board-card rounded-lg overflow-hidden mb-5">
+          <div className="px-4 py-3 board-card-header">
+            <span className="font-display text-base tracking-wide uppercase">
+              {FANTASY_FORMATS.find((f) => f.id === format)?.label} ADP &mdash; {teamSize}-Team
+            </span>
+          </div>
+          <div className="overflow-x-auto">
+            <div style={{ minWidth: '480px' }}>
+              <div className="grid" style={{ gridTemplateColumns: cols }}>
+                <div className="px-3 py-2 text-xs label-text">#</div>
+                <div className="px-3 py-2 text-xs label-text">Player</div>
+                <div className="px-1 py-2 text-center text-xs label-text">Pos</div>
+                <div className="px-1 py-2 text-center text-xs label-text">Team</div>
+                <div className="px-1 py-2 text-center text-xs label-text">ADP</div>
+                <div className="px-1 py-2 text-center text-xs label-text">Range</div>
+              </div>
+              {players.map((p, i) => (
+                <div
+                  key={p.player_id ?? i}
+                  className={`grid items-center border-row ${i % 2 === 0 ? 'stripe-a' : 'stripe-b'}`}
+                  style={{ gridTemplateColumns: cols }}
+                >
+                  <div className="px-3 py-2 text-sm font-mono side-label">{i + 1}</div>
+                  <div className="px-3 py-2 text-sm side-label">{p.name ?? '—'}</div>
+                  <div className="px-1 py-2 text-center text-sm font-mono kickoff-text">{p.position ?? '—'}</div>
+                  <div className="px-1 py-2 text-center text-sm font-mono kickoff-text">{p.team ?? '—'}</div>
+                  <div className="px-1 py-2 text-center text-sm font-mono side-label">
+                    {p.adp_formatted ?? p.adp ?? '—'}
+                  </div>
+                  <div className="px-1 py-2 text-center text-xs font-mono kickoff-text">
+                    {p.high !== undefined && p.low !== undefined ? `${p.high}–${p.low}` : '—'}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {data && (
+        <div className="text-center mt-3">
+          <button className="refresh-btn" onClick={() => setShowDebug((v) => !v)}>
+            {showDebug ? 'Hide' : 'Show'} raw API response (debug)
+          </button>
+          {showDebug && (
+            <div className="board-card rounded-lg p-3 mt-2 text-left text-xs font-mono kickoff-text" style={{ maxHeight: '300px', overflow: 'auto' }}>
+              <pre style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{JSON.stringify(data, null, 2).slice(0, 4000)}</pre>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function App() {
   const [activeId, setActiveId] = useState(SPORTS[0].id);
   const [cache, setCache] = useState({});
@@ -737,7 +875,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!cache[activeId]) fetchSport(activeSport);
+    if (!cache[activeId] && activeSport.type !== 'fantasy') fetchSport(activeSport);
   }, [activeId, cache, activeSport, fetchSport]);
 
   useEffect(() => {
@@ -870,6 +1008,16 @@ export default function App() {
           cursor: pointer;
         }
         .refresh-btn:hover { color: var(--amber-text); border-color: rgba(22, 163, 74, 0.4); }
+        .select-control {
+          font-family: 'IBM Plex Mono', monospace;
+          font-size: 0.75rem;
+          padding: 0.4rem 0.6rem;
+          border-radius: 6px;
+          border: 1px solid var(--card-border);
+          background: var(--card-bg);
+          color: var(--text-primary);
+          cursor: pointer;
+        }
         .error-box {
           border: 1px solid rgba(220, 38, 38, 0.3);
           background: rgba(220, 38, 38, 0.06);
@@ -884,18 +1032,22 @@ export default function App() {
       <div className="max-w-3xl mx-auto">
         <div className="flex items-center justify-between mb-1 flex-wrap gap-2">
           <h1 className="font-display text-2xl tracking-widest uppercase">Odds Board</h1>
-          <div className="flex items-center gap-2 font-mono text-xs kickoff-text">
-            <span className="live-dot" />
-            {entry ? `updated ${mm}:${ss} ago` : loading ? 'loading…' : 'no data yet'}
-          </div>
+          {activeSport.type !== 'fantasy' && (
+            <div className="flex items-center gap-2 font-mono text-xs kickoff-text">
+              <span className="live-dot" />
+              {entry ? `updated ${mm}:${ss} ago` : loading ? 'loading…' : 'no data yet'}
+            </div>
+          )}
         </div>
 
-        <p className="text-sm kickoff-text mb-4">
-          Live odds from DraftKings, FanDuel, BetMGM, BetRivers &amp; Bovada via The Odds API.
-          The <span style={{ color: 'var(--amber-text)' }}>green &quot;Best&quot;</span> column and
-          highlighted cells show the top price across all five books for each line. Kickoff times
-          shown in your local time.
-        </p>
+        {activeSport.type !== 'fantasy' && (
+          <p className="text-sm kickoff-text mb-4">
+            Live odds from DraftKings, FanDuel, BetMGM, BetRivers &amp; Bovada via The Odds API.
+            The <span style={{ color: 'var(--amber-text)' }}>green &quot;Best&quot;</span> column and
+            highlighted cells show the top price across all five books for each line. Kickoff times
+            shown in your local time.
+          </p>
+        )}
 
         <div className="flex items-center justify-between flex-wrap gap-2 mb-5">
           <div className="flex gap-2 flex-wrap">
@@ -909,10 +1061,14 @@ export default function App() {
               </button>
             ))}
           </div>
-          <button className="refresh-btn" onClick={() => fetchSport(activeSport)} disabled={loading}>
-            {loading ? 'Refreshing…' : 'Refresh'}
-          </button>
+          {activeSport.type !== 'fantasy' && (
+            <button className="refresh-btn" onClick={() => fetchSport(activeSport)} disabled={loading}>
+              {loading ? 'Refreshing…' : 'Refresh'}
+            </button>
+          )}
         </div>
+
+        {activeSport.type === 'fantasy' && <FantasyAdpTab />}
 
         {error && <div className="error-box">{error}</div>}
 
