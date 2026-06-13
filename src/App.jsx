@@ -291,7 +291,7 @@ function OddsCell({ price, line, isBestPrice, isBestLine }) {
       }`}
     >
       {line !== undefined && (
-        <span className={`text-xs leading-none mb-0.5 ${isBestPrice ? 'best-cell-line' : isBestLine ? 'line-best' : 'line-muted'}`}>
+        <span className={`text-xs leading-none mb-0.5 ${isBestPrice || isBestLine ? 'line-best' : 'line-muted'}`}>
           {line}
         </span>
       )}
@@ -796,12 +796,13 @@ export default function App() {
         .stripe-a { background: var(--card-bg); }
         .stripe-b { background: var(--row-alt); }
 
-        .best-line-header { background: var(--amber); color: #fff; }
-        .best-cell { background: var(--amber); color: #fff; }
+        .best-line-header { background: var(--amber); color: #fff; margin-right: 6px; }
+        .best-cell { background: var(--amber); color: #fff; margin-right: 6px; }
         .best-cell-line { color: rgba(255, 255, 255, 0.8); }
         .odds-best {
-          background: var(--amber);
-          color: #fff;
+          background: var(--amber-soft);
+          color: var(--amber-text);
+          box-shadow: inset 3px 0 0 var(--amber);
         }
         .best-book-badge { color: var(--amber-text); }
         .prop-label { color: var(--text-primary); background: rgba(15, 23, 42, 0.02); }
