@@ -1031,7 +1031,7 @@ export default function App() {
 
       <div className="max-w-3xl mx-auto">
         <div className="flex items-center justify-between mb-1 flex-wrap gap-2">
-          <h1 className="font-display text-2xl tracking-widest uppercase">Odds Board</h1>
+          <h1 className="font-display text-2xl tracking-widest uppercase">Fantasy Bets</h1>
           {activeSport.type !== 'fantasy' && (
             <div className="flex items-center gap-2 font-mono text-xs kickoff-text">
               <span className="live-dot" />

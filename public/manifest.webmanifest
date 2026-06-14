@@ -1,7 +1,7 @@
 {
-  "name": "Odds Board",
-  "short_name": "Odds Board",
-  "description": "Live sports odds comparison across multiple sportsbooks",
+  "name": "Fantasy Bets",
+  "short_name": "Fantasy Bets",
+  "description": "Live sports odds, player props, futures, and fantasy ADP",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#F1F3F5",
