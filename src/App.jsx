@@ -33,13 +33,11 @@ const SPORTS = [
 ];
 
 // Each NFL futures market is its own "sport key" in The Odds API.
-// Keys are best guesses based on documented patterns — the debug panel
-// on each card will confirm which ones return real data.
 const NFL_FUTURES_MARKETS = [
   { id: 'sb_winner', label: 'Super Bowl Winner', sportKey: 'americanfootball_nfl_super_bowl_winner' },
-  { id: 'mvp', label: 'NFL MVP', sportKey: 'americanfootball_nfl_award_mvp' },
-  { id: 'opoy', label: 'Offensive Player of the Year', sportKey: 'americanfootball_nfl_award_offensive_player_of_the_year' },
-  { id: 'win_totals', label: 'Team Win Totals', sportKey: 'americanfootball_nfl_win_totals', isWinTotal: true },
+  { id: 'mvp', label: 'NFL MVP', sportKey: 'americanfootball_nfl_championship_winner' },
+  { id: 'opoy', label: 'Offensive Player of the Year', sportKey: 'americanfootball_nfl_division_winner' },
+  { id: 'win_totals', label: 'Team Win Totals', sportKey: 'americanfootball_nfl_season_player_props' },
 ];
 
 // FantasyFootballCalculator's free, no-key ADP API: a single "consensus"
@@ -802,6 +800,22 @@ function FuturesCard({ market }) {
 }
 
 function NflFuturesTab() {
+  const [availableKeys, setAvailableKeys] = useState(null);
+  const [showKeys, setShowKeys] = useState(false);
+
+  const discoverKeys = async () => {
+    try {
+      const res = await fetch(`https://api.the-odds-api.com/v4/sports?all=true&apiKey=${API_KEY}`);
+      const json = await res.json();
+      const nfl = json.filter((s) => s.key.includes('americanfootball_nfl'));
+      setAvailableKeys(nfl);
+      setShowKeys(true);
+    } catch (e) {
+      setAvailableKeys([{ key: 'Error: ' + e.message, title: '' }]);
+      setShowKeys(true);
+    }
+  };
+
   return (
     <div>
       <p className="text-sm kickoff-text mb-4">
@@ -810,6 +824,18 @@ function NflFuturesTab() {
       {NFL_FUTURES_MARKETS.map((market) => (
         <FuturesCard key={market.id} market={market} />
       ))}
+      <div className="text-center mt-4">
+        <button className="refresh-btn" onClick={discoverKeys}>
+          Discover available NFL futures keys (free, no quota cost)
+        </button>
+        {showKeys && availableKeys && (
+          <div className="board-card rounded-lg p-3 mt-2 text-left text-xs font-mono kickoff-text">
+            {availableKeys.map((s) => (
+              <div key={s.key}><span className="side-label">{s.title}</span> <span className="line-muted">({s.key})</span></div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
