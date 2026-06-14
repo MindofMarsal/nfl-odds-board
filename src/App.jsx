@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { supabase } from './supabase';
 
 const API_KEY = import.meta.env.VITE_ODDS_API_KEY;
 
@@ -937,6 +938,112 @@ function FantasyAdpTab() {
   );
 }
 
+function AuthModal({ onClose, onAuth }) {
+  const [mode, setMode] = useState('login'); // 'login' | 'signup'
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [message, setMessage] = useState(null);
+
+  const handleSubmit = async () => {
+    setLoading(true);
+    setError(null);
+    setMessage(null);
+    try {
+      if (mode === 'signup') {
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { data: { username } },
+        });
+        if (error) throw error;
+        setMessage('Account created! Check your email to confirm your address, then log in.');
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        onAuth();
+        onClose();
+      }
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="auth-overlay" onClick={onClose}>
+      <div className="auth-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-display text-lg tracking-widest uppercase">
+            {mode === 'login' ? 'Sign In' : 'Create Account'}
+          </h2>
+          <button className="auth-close" onClick={onClose}>✕</button>
+        </div>
+
+        {error && <div className="error-box mb-3">{error}</div>}
+        {message && <div className="success-box mb-3">{message}</div>}
+
+        {mode === 'signup' && (
+          <div className="mb-3">
+            <label className="auth-label">Username</label>
+            <input
+              className="auth-input"
+              type="text"
+              placeholder="Choose a username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+            />
+          </div>
+        )}
+
+        <div className="mb-3">
+          <label className="auth-label">Email</label>
+          <input
+            className="auth-input"
+            type="email"
+            placeholder="your@email.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </div>
+
+        <div className="mb-4">
+          <label className="auth-label">Password</label>
+          <input
+            className="auth-input"
+            type="password"
+            placeholder="••••••••"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+          />
+        </div>
+
+        <button
+          className="auth-submit"
+          onClick={handleSubmit}
+          disabled={loading}
+        >
+          {loading ? 'Please wait…' : mode === 'login' ? 'Sign In' : 'Create Account'}
+        </button>
+
+        <p className="text-center text-xs kickoff-text mt-4">
+          {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
+          <button
+            className="auth-switch"
+            onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(null); setMessage(null); }}
+          >
+            {mode === 'login' ? 'Sign up' : 'Sign in'}
+          </button>
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [activeId, setActiveId] = useState(SPORTS[0].id);
   const [cache, setCache] = useState({});
@@ -945,6 +1052,25 @@ export default function App() {
   const [quota, setQuota] = useState(null);
   const [seconds, setSeconds] = useState(0);
   const [showDebug, setShowDebug] = useState(false);
+  const [session, setSession] = useState(null);
+  const [showAuth, setShowAuth] = useState(false);
+
+  // Listen for Supabase auth state changes (login, logout, session restore).
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    setSession(null);
+  };
+
+  const username = session?.user?.user_metadata?.username || session?.user?.email?.split('@')[0] || null;
+
 
   const activeSport = SPORTS.find((s) => s.id === activeId);
 
@@ -1135,17 +1261,118 @@ export default function App() {
           font-size: 0.85rem;
           margin-bottom: 1.5rem;
         }
+        .success-box {
+          border: 1px solid rgba(22, 163, 74, 0.3);
+          background: rgba(22, 163, 74, 0.06);
+          color: #15803D;
+          padding: 0.75rem 1rem;
+          border-radius: 8px;
+          font-size: 0.85rem;
+        }
+        .auth-overlay {
+          position: fixed; inset: 0;
+          background: rgba(0,0,0,0.45);
+          display: flex; align-items: center; justify-content: center;
+          z-index: 100;
+        }
+        .auth-modal {
+          background: var(--card-bg);
+          border: 1px solid var(--card-border);
+          border-radius: 12px;
+          padding: 1.5rem;
+          width: 100%;
+          max-width: 360px;
+          box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+        }
+        .auth-close {
+          background: none; border: none;
+          color: var(--text-muted); cursor: pointer;
+          font-size: 1rem; padding: 0.25rem;
+        }
+        .auth-close:hover { color: var(--text-primary); }
+        .auth-label {
+          display: block;
+          font-size: 0.75rem;
+          color: var(--text-muted);
+          margin-bottom: 0.35rem;
+          font-family: 'Inter', sans-serif;
+        }
+        .auth-input {
+          width: 100%;
+          padding: 0.5rem 0.75rem;
+          border: 1px solid var(--card-border);
+          border-radius: 6px;
+          background: var(--board-bg);
+          color: var(--text-primary);
+          font-size: 0.875rem;
+          font-family: 'Inter', sans-serif;
+          box-sizing: border-box;
+        }
+        .auth-input:focus {
+          outline: none;
+          border-color: rgba(22, 163, 74, 0.5);
+        }
+        .auth-submit {
+          width: 100%;
+          padding: 0.6rem 1rem;
+          background: var(--amber);
+          color: #fff;
+          border: none;
+          border-radius: 6px;
+          font-family: 'Oswald', sans-serif;
+          font-size: 0.9rem;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          cursor: pointer;
+        }
+        .auth-submit:hover { opacity: 0.9; }
+        .auth-submit:disabled { opacity: 0.6; cursor: not-allowed; }
+        .auth-switch {
+          background: none; border: none;
+          color: var(--amber-text);
+          cursor: pointer; font-size: 0.75rem;
+          text-decoration: underline; padding: 0;
+        }
+        .auth-header-btn {
+          font-family: 'IBM Plex Mono', monospace;
+          font-size: 0.75rem;
+          padding: 0.35rem 0.75rem;
+          border-radius: 6px;
+          border: 1px solid var(--card-border);
+          background: var(--card-bg);
+          color: var(--text-muted);
+          cursor: pointer;
+          white-space: nowrap;
+        }
+        .auth-header-btn:hover { color: var(--amber-text); border-color: rgba(22, 163, 74, 0.4); }
       `}</style>
 
       <div className="max-w-3xl mx-auto">
+        {showAuth && (
+          <AuthModal
+            onClose={() => setShowAuth(false)}
+            onAuth={() => setShowAuth(false)}
+          />
+        )}
+
         <div className="flex items-center justify-between mb-1 flex-wrap gap-2">
           <h1 className="font-display text-2xl tracking-widest uppercase">Fantasy Bets</h1>
-          {activeSport.type === 'game' && (
-            <div className="flex items-center gap-2 font-mono text-xs kickoff-text">
-              <span className="live-dot" />
-              {entry ? `updated ${mm}:${ss} ago` : loading ? 'loading…' : 'no data yet'}
-            </div>
-          )}
+          <div className="flex items-center gap-3">
+            {activeSport.type === 'game' && (
+              <div className="flex items-center gap-2 font-mono text-xs kickoff-text">
+                <span className="live-dot" />
+                {entry ? `updated ${mm}:${ss} ago` : loading ? 'loading…' : 'no data yet'}
+              </div>
+            )}
+            {session ? (
+              <div className="flex items-center gap-2">
+                <span className="text-xs kickoff-text font-mono">👤 {username}</span>
+                <button className="auth-header-btn" onClick={handleSignOut}>Sign out</button>
+              </div>
+            ) : (
+              <button className="auth-header-btn" onClick={() => setShowAuth(true)}>Sign in</button>
+            )}
+          </div>
         </div>
 
         {activeSport.type === 'game' && (
