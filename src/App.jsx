@@ -28,8 +28,18 @@ const SPORTS = [
   { id: 'nfl', label: 'NFL', sportKey: 'americanfootball_nfl', type: 'game' },
   { id: 'nba', label: 'NBA', sportKey: 'basketball_nba', type: 'game' },
   { id: 'mlb', label: 'MLB', sportKey: 'baseball_mlb', type: 'game' },
-  { id: 'nfl_futures', label: 'NFL Futures', sportKey: 'americanfootball_nfl_super_bowl_winner', type: 'futures' },
+  { id: 'nfl_futures', label: 'NFL Futures', type: 'nfl_futures' },
   { id: 'fantasy', label: 'Fantasy ADP', type: 'fantasy' },
+];
+
+// Each NFL futures market is its own "sport key" in The Odds API.
+// Keys are best guesses based on documented patterns — the debug panel
+// on each card will confirm which ones return real data.
+const NFL_FUTURES_MARKETS = [
+  { id: 'sb_winner', label: 'Super Bowl Winner', sportKey: 'americanfootball_nfl_super_bowl_winner' },
+  { id: 'mvp', label: 'NFL MVP', sportKey: 'americanfootball_nfl_award_mvp' },
+  { id: 'opoy', label: 'Offensive Player of the Year', sportKey: 'americanfootball_nfl_award_offensive_player_of_the_year' },
+  { id: 'win_totals', label: 'Team Win Totals', sportKey: 'americanfootball_nfl_win_totals', isWinTotal: true },
 ];
 
 // FantasyFootballCalculator's free, no-key ADP API: a single "consensus"
@@ -652,76 +662,154 @@ function Leaderboard({ games }) {
   );
 }
 
-function FuturesTable({ teams }) {
+// A single futures market accordion card — fetches its own data on open.
+function FuturesCard({ market }) {
   const cols = `1fr 76px repeat(${BOOKS.length}, 1fr)`;
   let stripeIndex = 0;
   const stripe = () => (stripeIndex++ % 2 === 0 ? 'stripe-a' : 'stripe-b');
-  const [open, setOpen] = useState(false);
 
-  if (teams.length === 0) {
-    return (
-      <div className="board-card rounded-lg p-4 mb-6 text-sm kickoff-text">
-        No futures market is currently available from the API for this sport.
-      </div>
-    );
-  }
+  const [open, setOpen] = useState(false);
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const url = `https://api.the-odds-api.com/v4/sports/${market.sportKey}/odds?regions=us&markets=outrights&oddsFormat=american&apiKey=${API_KEY}`;
+      const res = await fetch(url);
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`API error (${res.status}): ${text.slice(0, 150)}`);
+      }
+      const json = await res.json();
+      setData(json);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [market.sportKey]);
+
+  const handleToggle = () => {
+    const next = !open;
+    setOpen(next);
+    if (next && data === null && !loading) fetchData();
+  };
+
+  // Parse outrights response into { team/player, prices } list.
+  const teams = React.useMemo(() => {
+    if (!data) return [];
+    const event = data[0];
+    if (!event) return [];
+    const bookmakers = event.bookmakers || [];
+    const entries = {};
+    BOOKS.forEach((bookName) => {
+      const bm = findBookmaker(bookmakers, bookName);
+      if (!bm) return;
+      const mkt = (bm.markets || []).find((m) => m.key === 'outrights');
+      if (!mkt) return;
+      mkt.outcomes.forEach((o) => {
+        if (!entries[o.name]) entries[o.name] = {};
+        entries[o.name][bookName] = o.price;
+      });
+    });
+    return Object.entries(entries)
+      .map(([name, prices]) => ({ name, prices, color: teamColor(name) }))
+      .sort((a, b) => Math.min(...Object.values(a.prices)) - Math.min(...Object.values(b.prices)));
+  }, [data]);
 
   return (
     <div className="board-card rounded-lg overflow-hidden mb-3">
       <button
         className="accordion-header w-full flex items-center justify-between px-4 py-3 board-card-header"
-        onClick={() => setOpen((v) => !v)}
+        onClick={handleToggle}
       >
-        <span className="font-display text-base tracking-wide uppercase">Super Bowl Winner &mdash; Outright Odds</span>
+        <span className="font-display text-base tracking-wide uppercase">
+          {market.label}
+          {loading && <span className="font-mono text-xs kickoff-text ml-2">(loading…)</span>}
+        </span>
         <span className="accordion-chevron">{open ? '▲' : '▼'}</span>
       </button>
 
       {open && (
-        <div className="overflow-x-auto">
-          <div style={{ minWidth: '600px' }}>
-            <div className="grid" style={{ gridTemplateColumns: cols }}>
-              <div className="px-3 py-2 text-xs label-text">Team</div>
-              <div className="px-1 py-2 text-center text-xs font-display tracking-wide uppercase best-line-header">
-                Best
-              </div>
-              {BOOKS.map((b) => (
-                <div
-                  key={b}
-                  className="px-1 py-2 text-center text-xs font-mono book-header"
-                  style={{ background: BOOK_COLORS[b], color: '#fff' }}
-                >
-                  {BOOK_SHORT[b]}
-                </div>
-              ))}
+        <div>
+          {error && <div className="error-box" style={{ margin: '0.75rem' }}>{error}</div>}
+
+          {!error && teams.length === 0 && !loading && (
+            <div className="px-4 py-3 text-sm kickoff-text">
+              No odds available for this market right now — the sport key may not be active yet this season.
             </div>
-            {teams.map((t) => {
-              const best = bestMLBook(t.prices);
-              return (
-                <div key={t.team} className={`grid items-center border-row ${stripe()}`} style={{ gridTemplateColumns: cols }}>
-                  <div className="px-3 py-2 text-sm side-label flex items-center gap-2">
-                    <span className="team-stripe" style={{ background: t.color }} />
-                    {t.team}
+          )}
+
+          {!error && teams.length > 0 && (
+            <div className="overflow-x-auto">
+              <div style={{ minWidth: '600px' }}>
+                <div className="grid" style={{ gridTemplateColumns: cols }}>
+                  <div className="px-3 py-2 text-xs label-text">
+                    {market.isWinTotal ? 'Team' : 'Candidate'}
                   </div>
-                  <BestCell row={t.prices} bestKey={best} isMoneyline />
-                  {BOOKS.map((b) => {
-                    if (t.prices[b] === undefined) return <EmptyCell key={b} />;
-                    return (
-                      <div
-                        key={b}
-                        className={`flex items-center justify-center py-2 px-1 rounded font-mono text-sm ${
-                          b === best ? 'odds-best' : ''
-                        }`}
-                      >
-                        {fmtPrice(t.prices[b])}
-                      </div>
-                    );
-                  })}
+                  <div className="px-1 py-2 text-center text-xs font-display tracking-wide uppercase best-line-header">
+                    Best
+                  </div>
+                  {BOOKS.map((b) => (
+                    <div
+                      key={b}
+                      className="px-1 py-2 text-center text-xs font-mono book-header"
+                      style={{ background: BOOK_COLORS[b], color: '#fff' }}
+                    >
+                      {BOOK_SHORT[b]}
+                    </div>
+                  ))}
                 </div>
-              );
-            })}
-          </div>
+                {teams.map((t, i) => {
+                  const best = bestMLBook(t.prices);
+                  return (
+                    <div
+                      key={t.name}
+                      className={`grid items-center border-row ${i % 2 === 0 ? 'stripe-a' : 'stripe-b'}`}
+                      style={{ gridTemplateColumns: cols }}
+                    >
+                      <div className="px-3 py-2 text-sm side-label flex items-center gap-2">
+                        <span className="team-stripe" style={{ background: t.color }} />
+                        {t.name}
+                      </div>
+                      <BestCell row={t.prices} bestKey={best} isMoneyline />
+                      {BOOKS.map((b) => {
+                        if (t.prices[b] === undefined) return <EmptyCell key={b} />;
+                        return (
+                          <div
+                            key={b}
+                            className={`flex items-center justify-center py-2 px-1 rounded font-mono text-sm ${
+                              b === best ? 'odds-best' : ''
+                            }`}
+                          >
+                            {fmtPrice(t.prices[b])}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
+    </div>
+  );
+}
+
+function NflFuturesTab() {
+  return (
+    <div>
+      <p className="text-sm kickoff-text mb-4">
+        Click any market to expand and see live odds across all five books. Each market fetches independently — only opened markets use API credits.
+      </p>
+      {NFL_FUTURES_MARKETS.map((market) => (
+        <FuturesCard key={market.id} market={market} />
+      ))}
     </div>
   );
 }
@@ -871,7 +959,7 @@ export default function App() {
     setLoading(true);
     setError(null);
     try {
-      const market = sport.type === 'futures' ? 'outrights' : 'h2h,spreads,totals';
+      const market = 'h2h,spreads,totals';
       const url = `https://api.the-odds-api.com/v4/sports/${sport.sportKey}/odds?regions=us&markets=${market}&oddsFormat=american&apiKey=${API_KEY}`;
       const res = await fetch(url);
       const remaining = res.headers.get('x-requests-remaining');
@@ -890,7 +978,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!cache[activeId] && activeSport.type !== 'fantasy') fetchSport(activeSport);
+    if (!cache[activeId] && activeSport.type === 'game') fetchSport(activeSport);
   }, [activeId, cache, activeSport, fetchSport]);
 
   useEffect(() => {
@@ -904,17 +992,12 @@ export default function App() {
   const ss = ageSeconds !== null ? String(ageSeconds % 60).padStart(2, '0') : '--';
 
   let games = [];
-  let futures = [];
-  if (entry) {
-    if (activeSport.type === 'game') {
-      games = (entry.data || [])
-        .slice()
-        .sort((a, b) => new Date(a.commence_time) - new Date(b.commence_time))
-        .slice(0, MAX_GAMES)
-        .map(transformGame);
-    } else {
-      futures = transformFutures(entry.data);
-    }
+  if (entry && activeSport.type === 'game') {
+    games = (entry.data || [])
+      .slice()
+      .sort((a, b) => new Date(a.commence_time) - new Date(b.commence_time))
+      .slice(0, MAX_GAMES)
+      .map(transformGame);
   }
 
   return (
@@ -1060,7 +1143,7 @@ export default function App() {
       <div className="max-w-3xl mx-auto">
         <div className="flex items-center justify-between mb-1 flex-wrap gap-2">
           <h1 className="font-display text-2xl tracking-widest uppercase">Fantasy Bets</h1>
-          {activeSport.type !== 'fantasy' && (
+          {activeSport.type === 'game' && (
             <div className="flex items-center gap-2 font-mono text-xs kickoff-text">
               <span className="live-dot" />
               {entry ? `updated ${mm}:${ss} ago` : loading ? 'loading…' : 'no data yet'}
@@ -1068,7 +1151,7 @@ export default function App() {
           )}
         </div>
 
-        {activeSport.type !== 'fantasy' && (
+        {activeSport.type === 'game' && (
           <p className="text-sm kickoff-text mb-4">
             Live odds from DraftKings, FanDuel, BetMGM, BetRivers &amp; Bovada via The Odds API.
             The <span style={{ color: 'var(--amber-text)' }}>green &quot;Best&quot;</span> column and
@@ -1089,7 +1172,7 @@ export default function App() {
               </button>
             ))}
           </div>
-          {activeSport.type !== 'fantasy' && (
+          {activeSport.type === 'game' && (
             <button className="refresh-btn" onClick={() => fetchSport(activeSport)} disabled={loading}>
               {loading ? 'Refreshing…' : 'Refresh'}
             </button>
@@ -1123,25 +1206,25 @@ export default function App() {
           </>
         )}
 
-        {!error && entry && activeSport.type === 'futures' && <FuturesTable teams={futures} />}
+        {activeSport.type === 'nfl_futures' && <NflFuturesTab />}
 
-        {quota !== null && (
+        {quota !== null && activeSport.type !== 'nfl_futures' && activeSport.type !== 'fantasy' && (
           <p className="text-xs kickoff-text mt-4 text-center">
             The Odds API credits remaining this month: {quota}
           </p>
         )}
 
-        {entry && (
+        {entry && activeSport.type === 'game' && (
           <div className="text-center mt-3">
             <button className="refresh-btn" onClick={() => setShowDebug((v) => !v)}>
               {showDebug ? 'Hide' : 'Show'} raw bookmaker list (debug)
             </button>
             {showDebug && (
               <div className="board-card rounded-lg p-3 mt-2 text-left text-xs font-mono kickoff-text">
-                {getReturnedBookmakers(entry.data, activeSport.type === 'futures').length === 0 ? (
+                {getReturnedBookmakers(entry.data, false).length === 0 ? (
                   <div>No bookmakers returned for this sport right now.</div>
                 ) : (
-                  getReturnedBookmakers(entry.data, activeSport.type === 'futures').map(([key, title]) => (
+                  getReturnedBookmakers(entry.data, false).map(([key, title]) => (
                     <div key={key}>
                       {title} <span className="line-muted">({key})</span>
                     </div>
