@@ -401,6 +401,7 @@ function GameCard({ game, sportKey, propMarkets, onQuota }) {
   let stripeIndex = 0;
   const stripe = () => (stripeIndex++ % 2 === 0 ? 'stripe-a' : 'stripe-b');
 
+  const [open, setOpen] = useState(false);
   const [showProps, setShowProps] = useState(false);
   const [props, setProps] = useState(null);
   const [propsLoading, setPropsLoading] = useState(false);
@@ -452,8 +453,11 @@ function GameCard({ game, sportKey, propMarkets, onQuota }) {
   const topBook = topEntry[1] > 0 ? topEntry[0] : null;
 
   return (
-    <div className="board-card rounded-lg overflow-hidden mb-5">
-      <div className="flex items-center justify-between px-4 py-3 board-card-header">
+    <div className="board-card rounded-lg overflow-hidden mb-3">
+      <button
+        className="accordion-header w-full flex items-center justify-between px-4 py-3 board-card-header"
+        onClick={() => setOpen((v) => !v)}
+      >
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="team-stripe" style={{ background: game.away.color }} />
@@ -467,18 +471,20 @@ function GameCard({ game, sportKey, propMarkets, onQuota }) {
             <span className="font-display text-base tracking-wide uppercase">{game.home.name}</span>
           </div>
         </div>
-        <div className="text-right">
+        <div className="text-right flex flex-col items-end gap-1">
           <div className="text-xs kickoff-text font-mono tracking-wide">{game.kickoff}</div>
           {topBook && (
-            <div className="text-xs mt-2 best-book-badge">
-              Best value: <span className="font-mono">{topBook}</span>
+            <div className="text-xs best-book-badge">
+              Best: <span className="font-mono">{topBook}</span>
             </div>
           )}
+          <span className="accordion-chevron">{open ? '▲' : '▼'}</span>
         </div>
-      </div>
+      </button>
 
-      <div className="overflow-x-auto">
-        <div style={{ minWidth: '600px' }}>
+      {open && (
+        <div className="overflow-x-auto">
+          <div style={{ minWidth: '600px' }}>
           <div className="grid" style={{ gridTemplateColumns: cols }}>
             <div className="px-3 py-2 text-xs label-text">Market</div>
             <div className="px-1 py-2 text-center text-xs font-display tracking-wide uppercase best-line-header">
@@ -592,7 +598,7 @@ function GameCard({ game, sportKey, propMarkets, onQuota }) {
             </div>
           )}
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -649,6 +655,7 @@ function FuturesTable({ teams }) {
   const cols = `1fr 76px repeat(${BOOKS.length}, 1fr)`;
   let stripeIndex = 0;
   const stripe = () => (stripeIndex++ % 2 === 0 ? 'stripe-a' : 'stripe-b');
+  const [open, setOpen] = useState(false);
 
   if (teams.length === 0) {
     return (
@@ -659,54 +666,61 @@ function FuturesTable({ teams }) {
   }
 
   return (
-    <div className="board-card rounded-lg overflow-hidden mb-5">
-      <div className="px-4 py-3 board-card-header">
+    <div className="board-card rounded-lg overflow-hidden mb-3">
+      <button
+        className="accordion-header w-full flex items-center justify-between px-4 py-3 board-card-header"
+        onClick={() => setOpen((v) => !v)}
+      >
         <span className="font-display text-base tracking-wide uppercase">Super Bowl Winner &mdash; Outright Odds</span>
-      </div>
-      <div className="overflow-x-auto">
-        <div style={{ minWidth: '600px' }}>
-          <div className="grid" style={{ gridTemplateColumns: cols }}>
-            <div className="px-3 py-2 text-xs label-text">Team</div>
-            <div className="px-1 py-2 text-center text-xs font-display tracking-wide uppercase best-line-header">
-              Best
-            </div>
-            {BOOKS.map((b) => (
-              <div
-                key={b}
-                className="px-1 py-2 text-center text-xs font-mono book-header"
-                style={{ background: BOOK_COLORS[b], color: '#fff' }}
-              >
-                {BOOK_SHORT[b]}
+        <span className="accordion-chevron">{open ? '▲' : '▼'}</span>
+      </button>
+
+      {open && (
+        <div className="overflow-x-auto">
+          <div style={{ minWidth: '600px' }}>
+            <div className="grid" style={{ gridTemplateColumns: cols }}>
+              <div className="px-3 py-2 text-xs label-text">Team</div>
+              <div className="px-1 py-2 text-center text-xs font-display tracking-wide uppercase best-line-header">
+                Best
               </div>
-            ))}
-          </div>
-          {teams.map((t) => {
-            const best = bestMLBook(t.prices);
-            return (
-              <div key={t.team} className={`grid items-center border-row ${stripe()}`} style={{ gridTemplateColumns: cols }}>
-                <div className="px-3 py-2 text-sm side-label flex items-center gap-2">
-                  <span className="team-stripe" style={{ background: t.color }} />
-                  {t.team}
+              {BOOKS.map((b) => (
+                <div
+                  key={b}
+                  className="px-1 py-2 text-center text-xs font-mono book-header"
+                  style={{ background: BOOK_COLORS[b], color: '#fff' }}
+                >
+                  {BOOK_SHORT[b]}
                 </div>
-                <BestCell row={t.prices} bestKey={best} isMoneyline />
-                {BOOKS.map((b) => {
-                  if (t.prices[b] === undefined) return <EmptyCell key={b} />;
-                  return (
-                    <div
-                      key={b}
-                      className={`flex items-center justify-center py-2 px-1 rounded font-mono text-sm ${
-                        b === best ? 'odds-best' : ''
-                      }`}
-                    >
-                      {fmtPrice(t.prices[b])}
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })}
+              ))}
+            </div>
+            {teams.map((t) => {
+              const best = bestMLBook(t.prices);
+              return (
+                <div key={t.team} className={`grid items-center border-row ${stripe()}`} style={{ gridTemplateColumns: cols }}>
+                  <div className="px-3 py-2 text-sm side-label flex items-center gap-2">
+                    <span className="team-stripe" style={{ background: t.color }} />
+                    {t.team}
+                  </div>
+                  <BestCell row={t.prices} bestKey={best} isMoneyline />
+                  {BOOKS.map((b) => {
+                    if (t.prices[b] === undefined) return <EmptyCell key={b} />;
+                    return (
+                      <div
+                        key={b}
+                        className={`flex items-center justify-center py-2 px-1 rounded font-mono text-sm ${
+                          b === best ? 'odds-best' : ''
+                        }`}
+                      >
+                        {fmtPrice(t.prices[b])}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -954,6 +968,19 @@ export default function App() {
           box-shadow: inset 3px 0 0 var(--amber);
         }
         .best-book-badge { color: var(--amber-text); }
+        .accordion-header {
+          background: none;
+          border: none;
+          cursor: pointer;
+          text-align: left;
+          width: 100%;
+        }
+        .accordion-header:hover { filter: brightness(0.97); }
+        .accordion-chevron {
+          font-size: 0.6rem;
+          color: var(--text-muted);
+          margin-top: 4px;
+        }
         .prop-label { color: var(--text-primary); background: rgba(15, 23, 42, 0.02); }
         .props-toggle-btn {
           width: 100%;
