@@ -598,6 +598,7 @@ function GameCard({ game, sportKey, propMarkets, onQuota }) {
             </div>
           )}
         </div>
+        </div>
       )}
     </div>
   );
