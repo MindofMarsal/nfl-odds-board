@@ -32,12 +32,11 @@ const SPORTS = [
   { id: 'fantasy', label: 'Fantasy ADP', type: 'fantasy' },
 ];
 
-// Each NFL futures market is its own "sport key" in The Odds API.
+// Only the Super Bowl Winner market is available on the free plan right now.
+// Additional markets (MVP, OPOY, Win Totals) can be added when The Odds API
+// makes them available later in the season.
 const NFL_FUTURES_MARKETS = [
   { id: 'sb_winner', label: 'Super Bowl Winner', sportKey: 'americanfootball_nfl_super_bowl_winner' },
-  { id: 'mvp', label: 'NFL MVP', sportKey: 'americanfootball_nfl_championship_winner' },
-  { id: 'opoy', label: 'Offensive Player of the Year', sportKey: 'americanfootball_nfl_division_winner' },
-  { id: 'win_totals', label: 'Team Win Totals', sportKey: 'americanfootball_nfl_season_player_props' },
 ];
 
 // FantasyFootballCalculator's free, no-key ADP API: a single "consensus"
@@ -800,42 +799,14 @@ function FuturesCard({ market }) {
 }
 
 function NflFuturesTab() {
-  const [availableKeys, setAvailableKeys] = useState(null);
-  const [showKeys, setShowKeys] = useState(false);
-
-  const discoverKeys = async () => {
-    try {
-      const res = await fetch(`https://api.the-odds-api.com/v4/sports?all=true&apiKey=${API_KEY}`);
-      const json = await res.json();
-      const nfl = json.filter((s) => s.key.includes('americanfootball_nfl'));
-      setAvailableKeys(nfl);
-      setShowKeys(true);
-    } catch (e) {
-      setAvailableKeys([{ key: 'Error: ' + e.message, title: '' }]);
-      setShowKeys(true);
-    }
-  };
-
   return (
     <div>
       <p className="text-sm kickoff-text mb-4">
-        Click any market to expand and see live odds across all five books. Each market fetches independently — only opened markets use API credits.
+        Click the market below to expand and see live Super Bowl winner odds across all five books. Additional futures markets (MVP, Win Totals, etc.) will be added as they become available closer to the season.
       </p>
       {NFL_FUTURES_MARKETS.map((market) => (
         <FuturesCard key={market.id} market={market} />
       ))}
-      <div className="text-center mt-4">
-        <button className="refresh-btn" onClick={discoverKeys}>
-          Discover available NFL futures keys (free, no quota cost)
-        </button>
-        {showKeys && availableKeys && (
-          <div className="board-card rounded-lg p-3 mt-2 text-left text-xs font-mono kickoff-text">
-            {availableKeys.map((s) => (
-              <div key={s.key}><span className="side-label">{s.title}</span> <span className="line-muted">({s.key})</span></div>
-            ))}
-          </div>
-        )}
-      </div>
     </div>
   );
 }
