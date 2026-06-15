@@ -1180,7 +1180,7 @@ function AuthModal({ onClose, onAuth }) {
 }
 
 export default function App() {
-  const [activeId, setActiveId] = useState('nfl');
+  const [activeId, setActiveId] = useState('adp');
   const [openNav, setOpenNav] = useState(null);
   const [cache, setCache] = useState({});
   const [loading, setLoading] = useState(false);
