@@ -1111,11 +1111,12 @@ function RedZoneTab() {
     setError(null);
     try {
       const defaultSort = statType === 'rz_scoring_att_per_game' ? 'rank' : 'i20_td';
+      const currentSort = sortBy && COL_DEFS[statType]?.find(c => c.key === sortBy) ? sortBy : defaultSort;
       const { data, error } = await supabase
         .from(statType)
         .select('*')
         .eq('season', season)
-        .order(sortBy || defaultSort, { ascending: sortDir === 'asc' });
+        .order(currentSort, { ascending: sortDir === 'asc' });
       if (error) throw error;
       setData(data || []);
     } catch (e) {
