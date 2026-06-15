@@ -980,8 +980,7 @@ function OpportunitiesTab() {
         .from('opportunities')
         .select('*')
         .eq('season', season)
-        .order(sortBy, { ascending: sortDir === 'asc' })
-        .limit(200);
+        .order(sortBy, { ascending: sortDir === 'asc' });
 
       if (pos !== 'ALL') query = query.eq('pos', pos);
 
