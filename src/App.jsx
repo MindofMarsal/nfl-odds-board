@@ -951,10 +951,10 @@ function LoginPrompt({ onSignIn }) {
   );
 }
 
-function FantasyPointsPlaceholder() {
+function FantasyPointsPlaceholder({ title }) {
   return (
     <div className="board-card rounded-lg p-6 text-center mb-5">
-      <div className="font-display text-lg tracking-wide uppercase mb-2">Fantasy Points Leaders</div>
+      <div className="font-display text-lg tracking-wide uppercase mb-2">{title}</div>
       <p className="text-sm kickoff-text">Coming soon — data upload in progress.</p>
     </div>
   );
@@ -1583,7 +1583,7 @@ export default function App() {
             {/* Fantasy dropdown */}
             <div className="nav-group">
               <button
-                className={`tab-btn ${['adp','opportunities','fantasy_points'].includes(activeId) ? 'active' : ''}`}
+                className={`tab-btn ${['fantasy_points','fantasy_ppg','opportunities','red_zone','adp'].includes(activeId) ? 'active' : ''}`}
                 onClick={() => setOpenNav(openNav === 'fantasy' ? null : 'fantasy')}
               >
                 Fantasy {openNav === 'fantasy' ? '▲' : '▼'}
@@ -1591,9 +1591,11 @@ export default function App() {
               {openNav === 'fantasy' && (
                 <div className="nav-dropdown">
                   {[
-                    { id: 'adp', label: 'Average Draft Position' },
+                    { id: 'fantasy_points', label: 'Fantasy Points' },
+                    { id: 'fantasy_ppg', label: 'Fantasy Points Per Game' },
                     { id: 'opportunities', label: 'Player Opportunities' },
-                    { id: 'fantasy_points', label: 'Fantasy Points Leaders' },
+                    { id: 'red_zone', label: 'Red Zone Usage' },
+                    { id: 'adp', label: 'Average Draft Position (ADP)' },
                   ].map((item) => (
                     <button
                       key={item.id}
@@ -1645,7 +1647,9 @@ export default function App() {
 
         {activeId === 'adp' && <FantasyAdpTab />}
         {activeId === 'opportunities' && (session ? <OpportunitiesTab /> : <LoginPrompt onSignIn={() => setShowAuth(true)} />)}
-        {activeId === 'fantasy_points' && (session ? <FantasyPointsPlaceholder /> : <LoginPrompt onSignIn={() => setShowAuth(true)} />)}
+        {activeId === 'fantasy_points' && (session ? <FantasyPointsPlaceholder title="Fantasy Points" /> : <LoginPrompt onSignIn={() => setShowAuth(true)} />)}
+        {activeId === 'fantasy_ppg' && (session ? <FantasyPointsPlaceholder title="Fantasy Points Per Game" /> : <LoginPrompt onSignIn={() => setShowAuth(true)} />)}
+        {activeId === 'red_zone' && (session ? <FantasyPointsPlaceholder title="Red Zone Usage" /> : <LoginPrompt onSignIn={() => setShowAuth(true)} />)}
 
         {error && <div className="error-box">{error}</div>}
 
