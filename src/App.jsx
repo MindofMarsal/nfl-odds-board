@@ -31,6 +31,7 @@ const SPORTS = [
   { id: 'mlb', label: 'MLB', sportKey: 'baseball_mlb', type: 'game' },
   { id: 'nfl_futures', label: 'NFL Futures', type: 'nfl_futures' },
   { id: 'fantasy', label: 'Fantasy ADP', type: 'fantasy' },
+  { id: 'opportunities', label: 'Opportunities', type: 'opportunities' },
 ];
 
 // Only the Super Bowl Winner market is available on the free plan right now.
@@ -938,6 +939,140 @@ function FantasyAdpTab() {
   );
 }
 
+function LoginPrompt({ onSignIn }) {
+  return (
+    <div className="board-card rounded-lg p-6 text-center mb-5">
+      <div className="font-display text-lg tracking-wide uppercase mb-2">Sign In Required</div>
+      <p className="text-sm kickoff-text mb-4">This section is available to logged-in users only.</p>
+      <button className="auth-submit" style={{ width: 'auto', padding: '0.5rem 2rem' }} onClick={onSignIn}>
+        Sign In
+      </button>
+    </div>
+  );
+}
+
+function FantasyPointsPlaceholder() {
+  return (
+    <div className="board-card rounded-lg p-6 text-center mb-5">
+      <div className="font-display text-lg tracking-wide uppercase mb-2">Fantasy Points Leaders</div>
+      <p className="text-sm kickoff-text">Coming soon — data upload in progress.</p>
+    </div>
+  );
+}
+
+function OpportunitiesTab() {
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [season, setSeason] = useState(2025);
+  const [pos, setPos] = useState('ALL');
+  const [sortBy, setSortBy] = useState('opps');
+  const [sortDir, setSortDir] = useState('desc');
+
+  const seasons = Array.from({ length: 2025 - 2013 + 1 }, (_, i) => 2025 - i);
+  const positions = ['ALL', 'QB', 'RB', 'WR', 'TE'];
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      let query = supabase
+        .from('opportunities')
+        .select('*')
+        .eq('season', season)
+        .order(sortBy, { ascending: sortDir === 'asc' })
+        .limit(200);
+
+      if (pos !== 'ALL') query = query.eq('pos', pos);
+
+      const { data, error } = await query;
+      if (error) throw error;
+      setData(data || []);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [season, pos, sortBy, sortDir]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  const handleSort = (col) => {
+    if (sortBy === col) setSortDir(sortDir === 'desc' ? 'asc' : 'desc');
+    else { setSortBy(col); setSortDir('desc'); }
+  };
+
+  const cols = [
+    { key: 'player', label: 'Player' },
+    { key: 'team', label: 'Team' },
+    { key: 'pos', label: 'Pos' },
+    { key: 'gms', label: 'GMs' },
+    { key: 'snaps', label: 'Snaps' },
+    { key: 'snap_pct', label: 'Snap%', pct: true },
+    { key: 'tgt', label: 'Tgt' },
+    { key: 'tgt_shr', label: 'Tgt Shr%', pct: true },
+    { key: 'att', label: 'Att' },
+    { key: 'pct_tm_att', label: '% Tm Att', pct: true },
+    { key: 'opps', label: 'Opps' },
+    { key: 'pct_tm_opps', label: '% Tm Opps', pct: true },
+  ];
+
+  return (
+    <div>
+      <div className="flex items-center gap-2 flex-wrap mb-4">
+        <select className="select-control" value={season} onChange={(e) => setSeason(Number(e.target.value))}>
+          {seasons.map((y) => <option key={y} value={y}>{y}</option>)}
+        </select>
+        <select className="select-control" value={pos} onChange={(e) => setPos(e.target.value)}>
+          {positions.map((p) => <option key={p} value={p}>{p}</option>)}
+        </select>
+        <button className="refresh-btn" onClick={fetchData} disabled={loading}>
+          {loading ? 'Loading…' : 'Refresh'}
+        </button>
+      </div>
+
+      {error && <div className="error-box">{error}</div>}
+
+      {!error && (
+        <div className="board-card rounded-lg overflow-hidden mb-5">
+          <div className="px-4 py-3 board-card-header flex items-center justify-between">
+            <span className="font-display text-base tracking-wide uppercase">
+              {season} Player Opportunities {pos !== 'ALL' ? `— ${pos}` : ''}
+            </span>
+            <span className="text-xs kickoff-text">{data.length} players</span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="opp-table">
+              <thead>
+                <tr>
+                  {cols.map((c) => (
+                    <th key={c.key} onClick={() => handleSort(c.key)} className="opp-th">
+                      {c.label}{sortBy === c.key ? (sortDir === 'desc' ? ' ▼' : ' ▲') : ''}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr><td colSpan={cols.length} className="opp-td text-center kickoff-text">Loading…</td></tr>
+                ) : data.map((row, i) => (
+                  <tr key={row.id} className={i % 2 === 0 ? 'stripe-a' : 'stripe-b'}>
+                    {cols.map((c) => (
+                      <td key={c.key} className="opp-td">
+                        {c.pct && row[c.key] != null ? `${row[c.key]}%` : row[c.key] ?? '—'}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AuthModal({ onClose, onAuth }) {
   const [mode, setMode] = useState('login'); // 'login' | 'signup'
   const [email, setEmail] = useState('');
@@ -1045,7 +1180,8 @@ function AuthModal({ onClose, onAuth }) {
 }
 
 export default function App() {
-  const [activeId, setActiveId] = useState(SPORTS[0].id);
+  const [activeId, setActiveId] = useState('nfl');
+  const [openNav, setOpenNav] = useState(null);
   const [cache, setCache] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -1054,12 +1190,17 @@ export default function App() {
   const [showDebug, setShowDebug] = useState(false);
   const [session, setSession] = useState(null);
   const [showAuth, setShowAuth] = useState(false);
+  const [supabaseReady, setSupabaseReady] = useState(false);
 
   // Listen for Supabase auth state changes (login, logout, session restore).
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setSupabaseReady(true);
+    }).catch(() => setSupabaseReady(true));
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+      setSupabaseReady(true);
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -1072,7 +1213,7 @@ export default function App() {
   const username = session?.user?.user_metadata?.username || session?.user?.email?.split('@')[0] || null;
 
 
-  const activeSport = SPORTS.find((s) => s.id === activeId);
+  const activeSport = SPORTS.find((s) => s.id === activeId) || SPORTS[0];
 
   const fetchSport = useCallback(async (sport) => {
     if (!API_KEY) {
@@ -1101,7 +1242,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!cache[activeId] && activeSport.type === 'game') fetchSport(activeSport);
+    if (!cache[activeId] && ['nfl','nba','mlb'].includes(activeId)) fetchSport(activeSport);
   }, [activeId, cache, activeSport, fetchSport]);
 
   useEffect(() => {
@@ -1115,7 +1256,7 @@ export default function App() {
   const ss = ageSeconds !== null ? String(ageSeconds % 60).padStart(2, '0') : '--';
 
   let games = [];
-  if (entry && activeSport.type === 'game') {
+  if (entry && ['nfl','nba','mlb'].includes(activeId)) {
     games = (entry.data || [])
       .slice()
       .sort((a, b) => new Date(a.commence_time) - new Date(b.commence_time))
@@ -1345,6 +1486,58 @@ export default function App() {
           white-space: nowrap;
         }
         .auth-header-btn:hover { color: var(--amber-text); border-color: rgba(22, 163, 74, 0.4); }
+
+        .nav-group { position: relative; }
+        .nav-dropdown {
+          position: absolute;
+          top: calc(100% + 4px);
+          left: 0;
+          background: var(--card-bg);
+          border: 1px solid var(--card-border);
+          border-radius: 8px;
+          box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+          z-index: 50;
+          min-width: 180px;
+          overflow: hidden;
+        }
+        .nav-dropdown-item {
+          display: block;
+          width: 100%;
+          text-align: left;
+          padding: 0.6rem 1rem;
+          font-family: 'Inter', sans-serif;
+          font-size: 0.85rem;
+          background: none;
+          border: none;
+          color: var(--text-primary);
+          cursor: pointer;
+          border-bottom: 1px solid var(--row-border);
+        }
+        .nav-dropdown-item:last-child { border-bottom: none; }
+        .nav-dropdown-item:hover { background: var(--amber-soft); color: var(--amber-text); }
+        .nav-dropdown-item.active { color: var(--amber-text); font-weight: 600; }
+
+        .opp-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+        .opp-th {
+          padding: 0.5rem 0.75rem;
+          text-align: left;
+          font-family: 'IBM Plex Mono', monospace;
+          font-size: 0.7rem;
+          color: var(--text-muted);
+          background: var(--card-header-bg);
+          border-bottom: 1px solid var(--card-border);
+          cursor: pointer;
+          white-space: nowrap;
+          user-select: none;
+        }
+        .opp-th:hover { color: var(--amber-text); }
+        .opp-td {
+          padding: 0.45rem 0.75rem;
+          font-family: 'IBM Plex Mono', monospace;
+          color: var(--text-primary);
+          white-space: nowrap;
+          border-bottom: 1px solid var(--row-border);
+        }
       `}</style>
 
       <div className="max-w-3xl mx-auto">
@@ -1358,7 +1551,7 @@ export default function App() {
         <div className="flex items-center justify-between mb-1 flex-wrap gap-2">
           <h1 className="font-display text-2xl tracking-widest uppercase">Fantasy Bets</h1>
           <div className="flex items-center gap-3">
-            {activeSport.type === 'game' && (
+            {['nfl','nba','mlb'].includes(activeId) && (
               <div className="flex items-center gap-2 font-mono text-xs kickoff-text">
                 <span className="live-dot" />
                 {entry ? `updated ${mm}:${ss} ago` : loading ? 'loading…' : 'no data yet'}
@@ -1370,12 +1563,14 @@ export default function App() {
                 <button className="auth-header-btn" onClick={handleSignOut}>Sign out</button>
               </div>
             ) : (
-              <button className="auth-header-btn" onClick={() => setShowAuth(true)}>Sign in</button>
+              <button className="auth-header-btn" onClick={() => setShowAuth(true)}>
+                Sign in
+              </button>
             )}
           </div>
         </div>
 
-        {activeSport.type === 'game' && (
+        {['nfl','nba','mlb'].includes(activeId) && (
           <p className="text-sm kickoff-text mb-4">
             Live odds from DraftKings, FanDuel, BetMGM, BetRivers &amp; Bovada via The Odds API.
             The <span style={{ color: 'var(--amber-text)' }}>green &quot;Best&quot;</span> column and
@@ -1386,36 +1581,84 @@ export default function App() {
 
         <div className="flex items-center justify-between flex-wrap gap-2 mb-5">
           <div className="flex gap-2 flex-wrap">
-            {SPORTS.map((s) => (
+            {/* Fantasy dropdown */}
+            <div className="nav-group">
               <button
-                key={s.id}
-                className={`tab-btn ${activeId === s.id ? 'active' : ''}`}
-                onClick={() => setActiveId(s.id)}
+                className={`tab-btn ${['adp','opportunities','fantasy_points'].includes(activeId) ? 'active' : ''}`}
+                onClick={() => setOpenNav(openNav === 'fantasy' ? null : 'fantasy')}
               >
-                {s.label}
+                Fantasy {openNav === 'fantasy' ? '▲' : '▼'}
               </button>
-            ))}
+              {openNav === 'fantasy' && (
+                <div className="nav-dropdown">
+                  {[
+                    { id: 'adp', label: 'Average Draft Position' },
+                    { id: 'opportunities', label: 'Player Opportunities' },
+                    { id: 'fantasy_points', label: 'Fantasy Points Leaders' },
+                  ].map((item) => (
+                    <button
+                      key={item.id}
+                      className={`nav-dropdown-item ${activeId === item.id ? 'active' : ''}`}
+                      onClick={() => { setActiveId(item.id); setOpenNav(null); }}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Bet dropdown */}
+            <div className="nav-group">
+              <button
+                className={`tab-btn ${['nfl','nba','mlb','nfl_futures'].includes(activeId) ? 'active' : ''}`}
+                onClick={() => setOpenNav(openNav === 'bet' ? null : 'bet')}
+              >
+                Betting {openNav === 'bet' ? '▲' : '▼'}
+              </button>
+              {openNav === 'bet' && (
+                <div className="nav-dropdown">
+                  {[
+                    { id: 'nfl', label: 'NFL' },
+                    { id: 'nba', label: 'NBA' },
+                    { id: 'mlb', label: 'MLB' },
+                    { id: 'nfl_futures', label: 'NFL Futures' },
+                  ].map((item) => (
+                    <button
+                      key={item.id}
+                      className={`nav-dropdown-item ${activeId === item.id ? 'active' : ''}`}
+                      onClick={() => { setActiveId(item.id); setOpenNav(null); }}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-          {activeSport.type === 'game' && (
+
+          {activeId && ['nfl','nba','mlb'].includes(activeId) && (
             <button className="refresh-btn" onClick={() => fetchSport(activeSport)} disabled={loading}>
               {loading ? 'Refreshing…' : 'Refresh'}
             </button>
           )}
         </div>
 
-        {activeSport.type === 'fantasy' && <FantasyAdpTab />}
+        {activeId === 'adp' && <FantasyAdpTab />}
+        {activeId === 'opportunities' && (session ? <OpportunitiesTab /> : <LoginPrompt onSignIn={() => setShowAuth(true)} />)}
+        {activeId === 'fantasy_points' && (session ? <FantasyPointsPlaceholder /> : <LoginPrompt onSignIn={() => setShowAuth(true)} />)}
 
         {error && <div className="error-box">{error}</div>}
 
-        {!error && loading && !entry && (
-          <div className="text-sm kickoff-text mb-6">Fetching {activeSport.label} odds…</div>
+        {!error && loading && !entry && ['nfl','nba','mlb'].includes(activeId) && (
+          <div className="text-sm kickoff-text mb-6">Fetching {activeSport?.label} odds…</div>
         )}
 
-        {!error && entry && activeSport.type === 'game' && games.length === 0 && (
-          <div className="text-sm kickoff-text mb-6">No upcoming {activeSport.label} games found right now.</div>
+        {!error && entry && ['nfl','nba','mlb'].includes(activeId) && games.length === 0 && (
+          <div className="text-sm kickoff-text mb-6">No upcoming {activeSport?.label} games found right now.</div>
         )}
 
-        {!error && entry && activeSport.type === 'game' && games.length > 0 && (
+        {!error && entry && ['nfl','nba','mlb'].includes(activeId) && games.length > 0 && (
           <>
             <Leaderboard games={games} />
             {games.map((g) => (
@@ -1430,15 +1673,15 @@ export default function App() {
           </>
         )}
 
-        {activeSport.type === 'nfl_futures' && <NflFuturesTab />}
+        {activeId === 'nfl_futures' && <NflFuturesTab />}
 
-        {quota !== null && activeSport.type !== 'nfl_futures' && activeSport.type !== 'fantasy' && (
+        {quota !== null && ['nfl','nba','mlb'].includes(activeId) && (
           <p className="text-xs kickoff-text mt-4 text-center">
             The Odds API credits remaining this month: {quota}
           </p>
         )}
 
-        {entry && activeSport.type === 'game' && (
+        {entry && ['nfl','nba','mlb'].includes(activeId) && (
           <div className="text-center mt-3">
             <button className="refresh-btn" onClick={() => setShowDebug((v) => !v)}>
               {showDebug ? 'Hide' : 'Show'} raw bookmaker list (debug)
