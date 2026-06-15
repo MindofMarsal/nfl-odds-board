@@ -1783,7 +1783,7 @@ export default function App() {
         }
       `}</style>
 
-      <div className="max-w-3xl mx-auto">
+      <div className={`mx-auto ${['fantasy_points','fantasy_ppg','opportunities','red_zone'].includes(activeId) ? 'max-w-7xl' : 'max-w-3xl'}`}>
         {showAuth && (
           <AuthModal
             onClose={() => setShowAuth(false)}
