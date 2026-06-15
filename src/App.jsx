@@ -951,6 +951,249 @@ function LoginPrompt({ onSignIn }) {
   );
 }
 
+function FantasyDataTab({ title, table, scoringCols }) {
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [season, setSeason] = useState(2025);
+  const [pos, setPos] = useState('ALL');
+  const [scoring, setScoring] = useState(scoringCols[0].key);
+  const [sortBy, setSortBy] = useState(scoringCols[0].key);
+  const [sortDir, setSortDir] = useState('desc');
+
+  const seasons = Array.from({ length: 2025 - 2013 + 1 }, (_, i) => 2025 - i);
+  const positions = ['ALL', 'QB', 'RB', 'WR', 'TE'];
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      let query = supabase
+        .from(table)
+        .select('*')
+        .eq('season', season)
+        .order(sortBy, { ascending: sortDir === 'asc' });
+      if (pos !== 'ALL') query = query.eq('pos', pos);
+      const { data, error } = await query;
+      if (error) throw error;
+      setData(data || []);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [season, pos, sortBy, sortDir, table]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  const handleSort = (col) => {
+    if (sortBy === col) setSortDir(sortDir === 'desc' ? 'asc' : 'desc');
+    else { setSortBy(col); setSortDir('desc'); }
+  };
+
+  const baseCols = [
+    { key: 'player', label: 'Player' },
+    { key: 'team', label: 'Team' },
+    { key: 'pos', label: 'Pos' },
+    { key: 'gms', label: 'GMs' },
+  ];
+  const displayCols = [...baseCols, ...scoringCols];
+
+  return (
+    <div>
+      <div className="flex items-center gap-2 flex-wrap mb-4">
+        <select className="select-control" value={season} onChange={(e) => setSeason(Number(e.target.value))}>
+          {seasons.map((y) => <option key={y} value={y}>{y}</option>)}
+        </select>
+        <select className="select-control" value={pos} onChange={(e) => setPos(e.target.value)}>
+          {positions.map((p) => <option key={p} value={p}>{p}</option>)}
+        </select>
+        <button className="refresh-btn" onClick={fetchData} disabled={loading}>
+          {loading ? 'Loading…' : 'Refresh'}
+        </button>
+      </div>
+
+      {error && <div className="error-box">{error}</div>}
+
+      {!error && (
+        <div className="board-card rounded-lg overflow-hidden mb-5">
+          <div className="px-4 py-3 board-card-header flex items-center justify-between">
+            <span className="font-display text-base tracking-wide uppercase">
+              {season} {title} {pos !== 'ALL' ? `— ${pos}` : ''}
+            </span>
+            <span className="text-xs kickoff-text">{data.length} players</span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="opp-table">
+              <thead>
+                <tr>
+                  {displayCols.map((c) => (
+                    <th key={c.key} onClick={() => handleSort(c.key)} className="opp-th">
+                      {c.label}{sortBy === c.key ? (sortDir === 'desc' ? ' ▼' : ' ▲') : ''}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr><td colSpan={displayCols.length} className="opp-td text-center kickoff-text">Loading…</td></tr>
+                ) : data.map((row, i) => (
+                  <tr key={row.id} className={i % 2 === 0 ? 'stripe-a' : 'stripe-b'}>
+                    {displayCols.map((c) => (
+                      <td key={c.key} className="opp-td">{row[c.key] ?? '—'}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const FP_SCORING_COLS = [
+  { key: 'ppr', label: 'PPR' },
+  { key: 'half_ppr', label: '½ PPR' },
+  { key: 'std', label: 'STD' },
+  { key: 'pass_td_6pt', label: '6PT TD' },
+  { key: 'ffpc', label: 'FFPC' },
+  { key: 'dk', label: 'DK' },
+  { key: 'fd', label: 'FD' },
+  { key: 'underdog', label: 'Underdog' },
+];
+
+function RedZoneTab() {
+  const [statType, setStatType] = useState('rz_rushing');
+  const [season, setSeason] = useState(2025);
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [sortBy, setSortBy] = useState('i20_td');
+  const [sortDir, setSortDir] = useState('desc');
+
+  const seasons = Array.from({ length: 2025 - 2020 + 1 }, (_, i) => 2025 - i);
+
+  const STAT_TYPES = [
+    { key: 'rz_rushing', label: 'Rushing' },
+    { key: 'rz_receiving', label: 'Receiving' },
+    { key: 'rz_passing', label: 'Passing' },
+    { key: 'rz_scoring_att_per_game', label: 'RZ Scoring Att/Gm' },
+  ];
+
+  const COL_DEFS = {
+    rz_rushing: [
+      { key: 'player', label: 'Player' }, { key: 'team', label: 'Team' },
+      { key: 'i20_att', label: 'i20 Att' }, { key: 'i20_yds', label: 'i20 Yds' }, { key: 'i20_td', label: 'i20 TD' }, { key: 'i20_pctrush', label: 'i20 %Rush' },
+      { key: 'i10_att', label: 'i10 Att' }, { key: 'i10_yds', label: 'i10 Yds' }, { key: 'i10_td', label: 'i10 TD' }, { key: 'i10_pctrush', label: 'i10 %Rush' },
+      { key: 'i5_att', label: 'i5 Att' }, { key: 'i5_yds', label: 'i5 Yds' }, { key: 'i5_td', label: 'i5 TD' }, { key: 'i5_pctrush', label: 'i5 %Rush' },
+    ],
+    rz_receiving: [
+      { key: 'player', label: 'Player' }, { key: 'team', label: 'Team' },
+      { key: 'i20_tgt', label: 'i20 Tgt' }, { key: 'i20_rec', label: 'i20 Rec' }, { key: 'i20_ctchpct', label: 'i20 Ctch%' }, { key: 'i20_yds', label: 'i20 Yds' }, { key: 'i20_td', label: 'i20 TD' }, { key: 'i20_pcttgt', label: 'i20 %Tgt' },
+      { key: 'i10_tgt', label: 'i10 Tgt' }, { key: 'i10_rec', label: 'i10 Rec' }, { key: 'i10_ctchpct', label: 'i10 Ctch%' }, { key: 'i10_yds', label: 'i10 Yds' }, { key: 'i10_td', label: 'i10 TD' }, { key: 'i10_pcttgt', label: 'i10 %Tgt' },
+    ],
+    rz_passing: [
+      { key: 'player', label: 'Player' }, { key: 'team', label: 'Team' },
+      { key: 'i20_att', label: 'i20 Att' }, { key: 'i20_cmp', label: 'i20 Cmp' }, { key: 'i20_cmppct', label: 'i20 Cmp%' }, { key: 'i20_yds', label: 'i20 Yds' }, { key: 'i20_td', label: 'i20 TD' }, { key: 'i20_int', label: 'i20 Int' },
+      { key: 'i10_att', label: 'i10 Att' }, { key: 'i10_cmppct', label: 'i10 Cmp%' }, { key: 'i10_yds', label: 'i10 Yds' }, { key: 'i10_td', label: 'i10 TD' }, { key: 'i10_int', label: 'i10 Int' },
+    ],
+    rz_scoring_att_per_game: [
+      { key: 'team', label: 'Team' }, { key: 'rank', label: 'Rank' },
+      { key: 'season_avg', label: 'Season Avg' }, { key: 'last3', label: 'Last 3' }, { key: 'last1', label: 'Last 1' },
+      { key: 'home', label: 'Home' }, { key: 'away', label: 'Away' }, { key: 'prev_season', label: 'Prev Season' },
+    ],
+  };
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const defaultSort = statType === 'rz_scoring_att_per_game' ? 'rank' : 'i20_td';
+      const { data, error } = await supabase
+        .from(statType)
+        .select('*')
+        .eq('season', season)
+        .order(sortBy || defaultSort, { ascending: sortDir === 'asc' });
+      if (error) throw error;
+      setData(data || []);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [statType, season, sortBy, sortDir]);
+
+  useEffect(() => {
+    const defaultSort = statType === 'rz_scoring_att_per_game' ? 'rank' : 'i20_td';
+    setSortBy(defaultSort);
+    setSortDir(statType === 'rz_scoring_att_per_game' ? 'asc' : 'desc');
+  }, [statType]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  const handleSort = (col) => {
+    if (sortBy === col) setSortDir(sortDir === 'desc' ? 'asc' : 'desc');
+    else { setSortBy(col); setSortDir('desc'); }
+  };
+
+  const cols = COL_DEFS[statType] || [];
+
+  return (
+    <div>
+      <div className="flex items-center gap-2 flex-wrap mb-4">
+        <select className="select-control" value={season} onChange={(e) => setSeason(Number(e.target.value))}>
+          {seasons.map((y) => <option key={y} value={y}>{y}</option>)}
+        </select>
+        <select className="select-control" value={statType} onChange={(e) => setStatType(e.target.value)}>
+          {STAT_TYPES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
+        </select>
+        <button className="refresh-btn" onClick={fetchData} disabled={loading}>
+          {loading ? 'Loading…' : 'Refresh'}
+        </button>
+      </div>
+
+      {error && <div className="error-box">{error}</div>}
+
+      {!error && (
+        <div className="board-card rounded-lg overflow-hidden mb-5">
+          <div className="px-4 py-3 board-card-header flex items-center justify-between">
+            <span className="font-display text-base tracking-wide uppercase">
+              {season} Red Zone — {STAT_TYPES.find(t => t.key === statType)?.label}
+            </span>
+            <span className="text-xs kickoff-text">{data.length} rows</span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="opp-table">
+              <thead>
+                <tr>
+                  {cols.map((c) => (
+                    <th key={c.key} onClick={() => handleSort(c.key)} className="opp-th">
+                      {c.label}{sortBy === c.key ? (sortDir === 'desc' ? ' ▼' : ' ▲') : ''}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr><td colSpan={cols.length} className="opp-td text-center kickoff-text">Loading…</td></tr>
+                ) : data.map((row, i) => (
+                  <tr key={row.id} className={i % 2 === 0 ? 'stripe-a' : 'stripe-b'}>
+                    {cols.map((c) => (
+                      <td key={c.key} className="opp-td">{row[c.key] ?? '—'}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function FantasyPointsPlaceholder({ title }) {
   return (
     <div className="board-card rounded-lg p-6 text-center mb-5">
@@ -1179,7 +1422,7 @@ function AuthModal({ onClose, onAuth }) {
 }
 
 export default function App() {
-  const [activeId, setActiveId] = useState('adp');
+  const [activeId, setActiveId] = useState('fantasy_points');
   const [openNav, setOpenNav] = useState(null);
   const [cache, setCache] = useState({});
   const [loading, setLoading] = useState(false);
@@ -1647,9 +1890,9 @@ export default function App() {
 
         {activeId === 'adp' && <FantasyAdpTab />}
         {activeId === 'opportunities' && (session ? <OpportunitiesTab /> : <LoginPrompt onSignIn={() => setShowAuth(true)} />)}
-        {activeId === 'fantasy_points' && (session ? <FantasyPointsPlaceholder title="Fantasy Points" /> : <LoginPrompt onSignIn={() => setShowAuth(true)} />)}
-        {activeId === 'fantasy_ppg' && (session ? <FantasyPointsPlaceholder title="Fantasy Points Per Game" /> : <LoginPrompt onSignIn={() => setShowAuth(true)} />)}
-        {activeId === 'red_zone' && (session ? <FantasyPointsPlaceholder title="Red Zone Usage" /> : <LoginPrompt onSignIn={() => setShowAuth(true)} />)}
+        {activeId === 'fantasy_points' && (session ? <FantasyDataTab title="Fantasy Points" table="fantasy_points" scoringCols={FP_SCORING_COLS} /> : <LoginPrompt onSignIn={() => setShowAuth(true)} />)}
+        {activeId === 'fantasy_ppg' && (session ? <FantasyDataTab title="Fantasy Points Per Game" table="fantasy_ppg" scoringCols={FP_SCORING_COLS} /> : <LoginPrompt onSignIn={() => setShowAuth(true)} />)}
+        {activeId === 'red_zone' && (session ? <RedZoneTab /> : <LoginPrompt onSignIn={() => setShowAuth(true)} />)}
 
         {error && <div className="error-box">{error}</div>}
 
