@@ -932,6 +932,134 @@ function FantasyAdpTab() {
   );
 }
 
+// Position color coding used across ADP tables and the Draft Board.
+// QB = yellow, WR = blue, RB = orange, TE = green.
+function posColor(pos) {
+  const base = (pos || '').replace(/[0-9]/g, '');
+  switch (base) {
+    case 'QB': return { bg: 'rgba(234, 179, 8, 0.12)', text: '#A16207', border: 'rgba(234, 179, 8, 0.35)' };
+    case 'WR': return { bg: 'rgba(37, 99, 235, 0.10)', text: '#1D4ED8', border: 'rgba(37, 99, 235, 0.3)' };
+    case 'RB': return { bg: 'rgba(234, 88, 12, 0.10)', text: '#C2410C', border: 'rgba(234, 88, 12, 0.3)' };
+    case 'TE': return { bg: 'rgba(22, 163, 74, 0.10)', text: '#15803D', border: 'rgba(22, 163, 74, 0.3)' };
+    default: return { bg: 'var(--row-alt)', text: 'var(--text-muted)', border: 'var(--card-border)' };
+  }
+}
+
+function PosBadge({ pos }) {
+  const c = posColor(pos);
+  return (
+    <span style={{ fontSize: '0.68rem', fontWeight: 700, padding: '1px 7px', borderRadius: '5px', background: c.bg, color: c.text, border: `1px solid ${c.border}` }}>
+      {pos}
+    </span>
+  );
+}
+
+function TwoQbAdpTab() {
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [pos, setPos] = useState('ALL');
+  const [sortBy, setSortBy] = useState('overall');
+  const [sortDir, setSortDir] = useState('asc');
+
+  const positions = ['ALL', 'QB', 'RB', 'WR', 'TE', 'K', 'DST'];
+
+  const fetchAdp = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      let query = supabase
+        .from('adp_2qb')
+        .select('*')
+        .eq('season', 2026)
+        .order(sortBy, { ascending: sortDir === 'asc', nullsFirst: false });
+      if (pos !== 'ALL') query = query.eq('pos', pos);
+      const { data, error } = await query;
+      if (error) throw error;
+      setData(data || []);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [pos, sortBy, sortDir]);
+
+  useEffect(() => { fetchAdp(); }, [fetchAdp]);
+
+  const handleSort = (col) => {
+    if (sortBy === col) setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+    else { setSortBy(col); setSortDir('asc'); }
+  };
+
+  const cols = [
+    { key: 'overall', label: 'Overall' },
+    { key: 'player', label: 'Player' },
+    { key: 'pos', label: 'Pos' },
+    { key: 'team', label: 'Team' },
+    { key: 'bye', label: 'Bye' },
+    { key: 'avg_pick', label: 'Avg Pick' },
+    { key: 'high', label: 'High' },
+    { key: 'low', label: 'Low' },
+    { key: 'pct_drafted', label: '% Drafted' },
+  ];
+
+  return (
+    <div>
+      <p className="text-sm kickoff-text mb-4">
+        Consensus ADP specifically for 2-QB / Superflex leagues — QB value rises sharply compared to standard formats.
+      </p>
+
+      <div className="flex items-center gap-2 flex-wrap mb-4">
+        <select className="select-control" value={pos} onChange={(e) => setPos(e.target.value)}>
+          {positions.map((p) => <option key={p} value={p}>{p}</option>)}
+        </select>
+        <button className="refresh-btn" onClick={fetchAdp} disabled={loading}>
+          {loading ? 'Loading…' : 'Refresh'}
+        </button>
+      </div>
+
+      {error && <div className="error-box">{error}</div>}
+
+      {!error && (
+        <div className="board-card rounded-lg overflow-hidden mb-5">
+          <div className="px-4 py-3 board-card-header flex items-center justify-between">
+            <span className="font-display text-base tracking-wide uppercase">
+              2026 2-QB / Superflex ADP {pos !== 'ALL' ? `— ${pos}` : ''}
+            </span>
+            <span className="text-xs kickoff-text">{data.length} players</span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="opp-table">
+              <thead>
+                <tr>
+                  {cols.map((c) => (
+                    <th key={c.key} onClick={() => handleSort(c.key)} className="opp-th">
+                      {c.label}{sortBy === c.key ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr><td colSpan={cols.length} className="opp-td text-center kickoff-text">Loading…</td></tr>
+                ) : data.map((row, i) => (
+                  <tr key={row.id} className={i % 2 === 0 ? 'stripe-a' : 'stripe-b'}>
+                    {cols.map((c) => (
+                      <td key={c.key} className="opp-td">
+                        {c.key === 'pos' ? <PosBadge pos={row.pos} /> : (row[c.key] ?? '—')}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Transforms ESPN scoreboard event into a compact ticker item
 function parseESPNGame(event) {
   const comp = event.competitions?.[0];
@@ -1553,6 +1681,7 @@ function DraftBoard({ league, onBack }) {
   const [myTeamIndex, setMyTeamIndex] = useState(0);
   const [clockIndex, setClockIndex] = useState(0);
   const [assignFor, setAssignFor] = useState(null); // player object pending team assignment
+  const [showBoardModal, setShowBoardModal] = useState(false);
 
   const positions = ['ALL', 'QB', 'RB', 'WR', 'TE', 'K', 'DST'];
   const numDrafters = league.num_teams || 12;
@@ -1673,6 +1802,9 @@ function DraftBoard({ league, onBack }) {
           <select className="select-control" value={myTeamIndex} onChange={(e) => setMyTeamIndex(Number(e.target.value))}>
             {teamLabels.map((label, i) => <option key={i} value={i}>{label}</option>)}
           </select>
+          <button className="refresh-btn" onClick={() => setShowBoardModal(true)} disabled={picks.length === 0}>
+            View Draft Board
+          </button>
         </div>
       </div>
 
@@ -1722,7 +1854,7 @@ function DraftBoard({ league, onBack }) {
                     <tr key={p.player} className={i % 2 === 0 ? 'stripe-a' : 'stripe-b'}>
                       <td className="opp-td">{p.overall ?? '—'}</td>
                       <td className="opp-td" style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600 }}>{p.player}</td>
-                      <td className="opp-td">{p.pos}</td>
+                      <td className="opp-td"><PosBadge pos={p.pos} /></td>
                       <td className="opp-td">{p.team}</td>
                       <td className="opp-td">
                         <button
@@ -1760,9 +1892,9 @@ function DraftBoard({ league, onBack }) {
                 {myPicks.length === 0 ? (
                   <div className="text-xs kickoff-text">No picks yet.</div>
                 ) : myPicks.map(p => (
-                  <div key={p.player} style={{ fontSize: '0.78rem', padding: '0.3rem 0', display: 'flex', justifyContent: 'space-between' }}>
+                  <div key={p.player} style={{ fontSize: '0.78rem', padding: '0.3rem 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span>{p.player}</span>
-                    <span style={{ color: 'var(--text-muted)' }}>{p.pos}</span>
+                    <PosBadge pos={p.pos} />
                   </div>
                 ))}
               </div>
@@ -1771,49 +1903,59 @@ function DraftBoard({ league, onBack }) {
         </div>
       </div>
 
-      {picks.length > 0 && (
-        <div className="board-card rounded-lg overflow-hidden mt-4">
-          <div className="board-card-header px-4 py-2">
-            <span className="font-display text-sm">Draft Board</span>
-          </div>
-          <div style={{ display: 'flex', gap: '0.5rem', overflowX: 'auto', padding: '0.75rem' }}>
-            {teamLabels.map((label, teamIdx) => {
-              const teamPicks = picks.filter(p => p.teamIndex === teamIdx);
-              const isMe = teamIdx === myTeamIndex;
-              return (
-                <div
-                  key={teamIdx}
-                  style={{
-                    minWidth: '130px', flexShrink: 0, borderRadius: '8px', overflow: 'hidden',
-                    border: isMe ? '1.5px solid var(--amber)' : '1px solid var(--card-border)',
-                  }}
-                >
-                  <div style={{ padding: '0.4rem 0.6rem', background: isMe ? 'var(--amber-soft)' : 'var(--row-alt)', fontSize: '0.7rem', fontWeight: 700, color: isMe ? 'var(--amber-text)' : 'var(--text-primary)' }}>
-                    {label}{isMe ? ' (Me)' : ''}
-                  </div>
-                  {teamPicks.length === 0 ? (
-                    <div style={{ padding: '0.5rem 0.6rem', fontSize: '0.68rem', color: 'var(--text-muted)' }}>No picks</div>
-                  ) : teamPicks.map((p) => {
-                    const pickIdx = picks.indexOf(p);
-                    return (
-                      <div key={p.player} style={{ padding: '0.4rem 0.6rem', borderTop: '1px solid var(--row-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '4px' }}>
-                        <div style={{ minWidth: 0 }}>
-                          <div style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.player}</div>
-                          <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>{p.pos} · #{p.pickNumber}</div>
+      {showBoardModal && (
+        <div className="auth-overlay" onClick={() => setShowBoardModal(false)}>
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: '16px', padding: '1.25rem', width: '95%', maxWidth: '1100px', maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 12px 40px rgba(26,31,46,0.15)' }}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <span className="font-display text-base">Draft Board — {league.league_name}</span>
+              <button className="auth-close" onClick={() => setShowBoardModal(false)}>✕</button>
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', overflowX: 'auto', paddingBottom: '0.5rem' }}>
+              {teamLabels.map((label, teamIdx) => {
+                const teamPicks = picks.filter(p => p.teamIndex === teamIdx);
+                const isMe = teamIdx === myTeamIndex;
+                return (
+                  <div
+                    key={teamIdx}
+                    style={{
+                      minWidth: '150px', flexShrink: 0, borderRadius: '10px', overflow: 'hidden',
+                      border: isMe ? '1.5px solid var(--amber)' : '1px solid var(--card-border)',
+                    }}
+                  >
+                    <div style={{ padding: '0.5rem 0.7rem', background: isMe ? 'var(--amber-soft)' : 'var(--row-alt)', fontSize: '0.74rem', fontWeight: 700, color: isMe ? 'var(--amber-text)' : 'var(--text-primary)' }}>
+                      {label}{isMe ? ' (Me)' : ''}
+                    </div>
+                    {teamPicks.length === 0 ? (
+                      <div style={{ padding: '0.5rem 0.7rem', fontSize: '0.7rem', color: 'var(--text-muted)' }}>No picks</div>
+                    ) : teamPicks.map((p) => {
+                      const pickIdx = picks.indexOf(p);
+                      const c = posColor(p.pos);
+                      return (
+                        <div key={p.player} style={{ padding: '0.45rem 0.7rem', borderTop: '1px solid var(--row-border)', borderLeft: `3px solid ${c.text}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '4px' }}>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.player}</div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '2px' }}>
+                              <PosBadge pos={p.pos} />
+                              <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}>#{p.pickNumber}</span>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => undoPick(pickIdx)}
+                            title="Undo this pick"
+                            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.7rem', flexShrink: 0 }}
+                          >
+                            ✕
+                          </button>
                         </div>
-                        <button
-                          onClick={() => undoPick(pickIdx)}
-                          title="Undo this pick"
-                          style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.7rem', flexShrink: 0 }}
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })}
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}
@@ -2482,7 +2624,7 @@ export default function App() {
         .gdb-nav { background: var(--card-bg); border-bottom: 1.5px solid var(--card-border); padding: 0.65rem 1.5rem; display: flex; align-items: center; justify-content: space-between; margin: -1.5rem -1.5rem 1.5rem; }
       `}</style>
 
-      <div className={`mx-auto ${['fantasy_points','fantasy_ppg','opportunities','red_zone','adp','draft_assistant'].includes(activeId) ? 'max-w-7xl' : 'max-w-3xl'}`}>
+      <div className={`mx-auto ${['fantasy_points','fantasy_ppg','opportunities','red_zone','adp','adp_2qb','draft_assistant'].includes(activeId) ? 'max-w-7xl' : 'max-w-3xl'}`}>
         {showAuth && (
           <AuthModal
             onClose={() => setShowAuth(false)}
@@ -2530,7 +2672,7 @@ export default function App() {
             {/* Fantasy dropdown */}
             <div className="nav-group">
               <button
-                className={`tab-btn ${['fantasy_points','fantasy_ppg','opportunities','red_zone','adp','draft_assistant'].includes(activeId) ? 'active' : ''}`}
+                className={`tab-btn ${['fantasy_points','fantasy_ppg','opportunities','red_zone','adp','adp_2qb','draft_assistant'].includes(activeId) ? 'active' : ''}`}
                 onClick={() => setOpenNav(openNav === 'fantasy' ? null : 'fantasy')}
               >
                 Fantasy {openNav === 'fantasy' ? '▲' : '▼'}
@@ -2539,6 +2681,7 @@ export default function App() {
                 <div className="nav-dropdown">
                   {[
                     { id: 'adp', label: 'Average Draft Position (ADP)' },
+                    { id: 'adp_2qb', label: '2-QB / Superflex ADP' },
                     { id: 'fantasy_points', label: 'Fantasy Points' },
                     { id: 'fantasy_ppg', label: 'Fantasy Points Per Game' },
                     { id: 'opportunities', label: 'Player Opportunities' },
@@ -2594,6 +2737,7 @@ export default function App() {
         </div>
 
         {activeId === 'adp' && <FantasyAdpTab />}
+        {activeId === 'adp_2qb' && <TwoQbAdpTab />}
         {activeId === 'opportunities' && (session ? <OpportunitiesTab /> : <LoginPrompt onSignIn={() => setShowAuth(true)} />)}
         {activeId === 'fantasy_points' && (session ? <FantasyDataTab title="Fantasy Points" table="fantasy_points" scoringCols={FP_SCORING_COLS} /> : <LoginPrompt onSignIn={() => setShowAuth(true)} />)}
         {activeId === 'fantasy_ppg' && (session ? <FantasyDataTab title="Fantasy Points Per Game" table="fantasy_ppg" scoringCols={FP_SCORING_COLS} /> : <LoginPrompt onSignIn={() => setShowAuth(true)} />)}
