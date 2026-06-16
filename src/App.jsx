@@ -1411,12 +1411,19 @@ function LeagueSetupForm({ userId, onSaved, onCancel }) {
   const [draftType, setDraftType] = useState('snake');
   const [numTeams, setNumTeams] = useState(12);
   const [scoringFormat, setScoringFormat] = useState('ppr');
+  const [superflex, setSuperflex] = useState(false);
   const [roster, setRoster] = useState({ qb: 1, rb: 2, wr: 2, te: 1, flex: 1, k: 1, dst: 1, bench: 6 });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
   const updateRoster = (key, val) => {
     setRoster(r => ({ ...r, [key]: Math.max(0, Number(val) || 0) }));
+  };
+
+  const toggleSuperflex = (checked) => {
+    setSuperflex(checked);
+    // Common convention: superflex leagues add a 2nd startable QB-eligible slot
+    setRoster(r => ({ ...r, qb: checked ? 2 : 1 }));
   };
 
   const handleSave = async () => {
@@ -1433,6 +1440,7 @@ function LeagueSetupForm({ userId, onSaved, onCancel }) {
         draft_type: draftType,
         num_teams: numTeams,
         scoring_format: scoringFormat,
+        superflex,
         ...roster,
       });
       if (error) throw error;
@@ -1488,6 +1496,20 @@ function LeagueSetupForm({ userId, onSaved, onCancel }) {
             <option value="standard">Standard</option>
           </select>
         </div>
+      </div>
+
+      <div className="flex items-center gap-2 mb-4">
+        <input
+          type="checkbox"
+          id="superflex-toggle"
+          checked={superflex}
+          onChange={(e) => toggleSuperflex(e.target.checked)}
+          style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+        />
+        <label htmlFor="superflex-toggle" style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)', cursor: 'pointer' }}>
+          2-QB / Superflex League
+        </label>
+        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>(adds a 2nd startable QB slot)</span>
       </div>
 
       <label className="auth-label" style={{ marginBottom: '0.5rem' }}>Roster Spots</label>
@@ -1590,7 +1612,7 @@ function DraftBoard({ league, onBack }) {
         <div>
           <div className="font-display text-base">{league.league_name}</div>
           <div className="text-xs kickoff-text">
-            {league.num_teams}-team {league.draft_type} · {league.scoring_format.toUpperCase()} · {Object.keys(drafted).length} drafted
+            {league.num_teams}-team {league.draft_type} · {league.scoring_format.toUpperCase()}{league.superflex ? ' · Superflex' : ''} · {Object.keys(drafted).length} drafted
           </div>
         </div>
         <button className="refresh-btn" onClick={onBack}>← Back to Leagues</button>
@@ -1599,6 +1621,11 @@ function DraftBoard({ league, onBack }) {
       <div className="flex gap-4 flex-wrap" style={{ alignItems: 'flex-start' }}>
         {/* Available players */}
         <div style={{ flex: '2 1 480px', minWidth: '320px' }}>
+          {league.superflex && (
+            <div className="text-xs kickoff-text mb-3" style={{ background: 'var(--amber-soft)', padding: '0.5rem 0.75rem', borderRadius: '8px' }}>
+              This league is Superflex — QB values typically rise compared to standard ADP. The rankings below use standard consensus ADP for now; QB-heavy strategy adjustments are on you for this version.
+            </div>
+          )}
           <div className="flex gap-2 flex-wrap mb-3">
             <input
               className="auth-input"
@@ -1761,7 +1788,7 @@ function DraftAssistantTab({ userId }) {
             >
               <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>{l.league_name}</div>
               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                {l.num_teams}-team {l.draft_type} · {l.scoring_format.toUpperCase()}
+                {l.num_teams}-team {l.draft_type} · {l.scoring_format.toUpperCase()}{l.superflex ? ' · Superflex' : ''}
               </div>
             </button>
           ))}
