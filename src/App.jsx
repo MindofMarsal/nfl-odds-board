@@ -1406,6 +1406,371 @@ function RedZoneTab() {
   );
 }
 
+function LeagueSetupForm({ userId, onSaved, onCancel }) {
+  const [leagueName, setLeagueName] = useState('');
+  const [draftType, setDraftType] = useState('snake');
+  const [numTeams, setNumTeams] = useState(12);
+  const [scoringFormat, setScoringFormat] = useState('ppr');
+  const [roster, setRoster] = useState({ qb: 1, rb: 2, wr: 2, te: 1, flex: 1, k: 1, dst: 1, bench: 6 });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+
+  const updateRoster = (key, val) => {
+    setRoster(r => ({ ...r, [key]: Math.max(0, Number(val) || 0) }));
+  };
+
+  const handleSave = async () => {
+    if (!leagueName.trim()) {
+      setError('Please enter a league name.');
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      const { error } = await supabase.from('leagues').insert({
+        user_id: userId,
+        league_name: leagueName.trim(),
+        draft_type: draftType,
+        num_teams: numTeams,
+        scoring_format: scoringFormat,
+        ...roster,
+      });
+      if (error) throw error;
+      onSaved();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const ROSTER_FIELDS = [
+    { key: 'qb', label: 'QB' },
+    { key: 'rb', label: 'RB' },
+    { key: 'wr', label: 'WR' },
+    { key: 'te', label: 'TE' },
+    { key: 'flex', label: 'FLEX' },
+    { key: 'k', label: 'K' },
+    { key: 'dst', label: 'DST' },
+    { key: 'bench', label: 'Bench' },
+  ];
+
+  return (
+    <div className="board-card rounded-lg p-5 mb-5" style={{ maxWidth: '560px' }}>
+      <div className="font-display text-base mb-4">Create a League</div>
+
+      {error && <div className="error-box">{error}</div>}
+
+      <div className="mb-3">
+        <label className="auth-label">League Name</label>
+        <input className="auth-input" value={leagueName} onChange={(e) => setLeagueName(e.target.value)} placeholder="e.g. Office League 2026" />
+      </div>
+
+      <div className="flex gap-3 mb-3">
+        <div style={{ flex: 1 }}>
+          <label className="auth-label">Draft Type</label>
+          <select className="select-control" style={{ width: '100%' }} value={draftType} onChange={(e) => setDraftType(e.target.value)}>
+            <option value="snake">Snake</option>
+            <option value="auction">Auction</option>
+          </select>
+        </div>
+        <div style={{ flex: 1 }}>
+          <label className="auth-label">Teams</label>
+          <select className="select-control" style={{ width: '100%' }} value={numTeams} onChange={(e) => setNumTeams(Number(e.target.value))}>
+            {[8,10,12,14,16].map(n => <option key={n} value={n}>{n}</option>)}
+          </select>
+        </div>
+        <div style={{ flex: 1 }}>
+          <label className="auth-label">Scoring</label>
+          <select className="select-control" style={{ width: '100%' }} value={scoringFormat} onChange={(e) => setScoringFormat(e.target.value)}>
+            <option value="ppr">PPR</option>
+            <option value="half_ppr">Half PPR</option>
+            <option value="standard">Standard</option>
+          </select>
+        </div>
+      </div>
+
+      <label className="auth-label" style={{ marginBottom: '0.5rem' }}>Roster Spots</label>
+      <div className="flex gap-2 mb-4" style={{ flexWrap: 'wrap' }}>
+        {ROSTER_FIELDS.map(f => (
+          <div key={f.key} style={{ width: '70px' }}>
+            <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textAlign: 'center', marginBottom: '2px' }}>{f.label}</div>
+            <input
+              className="auth-input"
+              type="number"
+              min="0"
+              style={{ textAlign: 'center', padding: '0.4rem' }}
+              value={roster[f.key]}
+              onChange={(e) => updateRoster(f.key, e.target.value)}
+            />
+          </div>
+        ))}
+      </div>
+
+      <div className="flex gap-2">
+        <button className="auth-submit" style={{ width: 'auto', padding: '0.55rem 1.5rem' }} onClick={handleSave} disabled={saving}>
+          {saving ? 'Saving…' : 'Create League'}
+        </button>
+        <button className="refresh-btn" onClick={onCancel}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+
+function DraftBoard({ league, onBack }) {
+  const [players, setPlayers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [pos, setPos] = useState('ALL');
+  const [search, setSearch] = useState('');
+  const [drafted, setDrafted] = useState({}); // { player: teamSlotInfo }
+  const [myTeam, setMyTeam] = useState([]);
+
+  const positions = ['ALL', 'QB', 'RB', 'WR', 'TE', 'K', 'DST'];
+
+  const fetchPlayers = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('adp')
+        .select('*')
+        .eq('season', 2026)
+        .order('overall', { ascending: true });
+      if (error) throw error;
+      setPlayers(data || []);
+    } catch (e) {
+      setPlayers([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchPlayers(); }, [fetchPlayers]);
+
+  const toggleDrafted = (player, byMe) => {
+    setDrafted(d => {
+      const next = { ...d };
+      if (next[player.player]) {
+        delete next[player.player];
+        setMyTeam(team => team.filter(p => p.player !== player.player));
+      } else {
+        next[player.player] = true;
+        if (byMe) setMyTeam(team => [...team, player]);
+      }
+      return next;
+    });
+  };
+
+  const ROSTER_FIELDS = [
+    { key: 'qb', label: 'QB' },
+    { key: 'rb', label: 'RB' },
+    { key: 'wr', label: 'WR' },
+    { key: 'te', label: 'TE' },
+    { key: 'flex', label: 'FLEX' },
+    { key: 'k', label: 'K' },
+    { key: 'dst', label: 'DST' },
+    { key: 'bench', label: 'Bench' },
+  ];
+
+  const filtered = players.filter(p => {
+    if (drafted[p.player]) return false;
+    if (pos !== 'ALL' && !p.pos?.startsWith(pos)) return false;
+    if (search && !p.player?.toLowerCase().includes(search.toLowerCase())) return false;
+    return true;
+  });
+
+  const myPosCounts = {};
+  myTeam.forEach(p => {
+    const base = (p.pos || '').replace(/[0-9]/g, '');
+    myPosCounts[base] = (myPosCounts[base] || 0) + 1;
+  });
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+        <div>
+          <div className="font-display text-base">{league.league_name}</div>
+          <div className="text-xs kickoff-text">
+            {league.num_teams}-team {league.draft_type} · {league.scoring_format.toUpperCase()} · {Object.keys(drafted).length} drafted
+          </div>
+        </div>
+        <button className="refresh-btn" onClick={onBack}>← Back to Leagues</button>
+      </div>
+
+      <div className="flex gap-4 flex-wrap" style={{ alignItems: 'flex-start' }}>
+        {/* Available players */}
+        <div style={{ flex: '2 1 480px', minWidth: '320px' }}>
+          <div className="flex gap-2 flex-wrap mb-3">
+            <input
+              className="auth-input"
+              style={{ maxWidth: '220px' }}
+              placeholder="Search player…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            <select className="select-control" value={pos} onChange={(e) => setPos(e.target.value)}>
+              {positions.map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
+            <button className="refresh-btn" onClick={fetchPlayers} disabled={loading}>
+              {loading ? 'Loading…' : 'Refresh'}
+            </button>
+          </div>
+
+          <div className="board-card rounded-lg overflow-hidden">
+            <div className="board-card-header px-4 py-2 flex items-center justify-between">
+              <span className="font-display text-sm">Best Available</span>
+              <span className="text-xs kickoff-text">{filtered.length} players</span>
+            </div>
+            <div style={{ maxHeight: '560px', overflowY: 'auto' }}>
+              <table className="opp-table">
+                <thead>
+                  <tr>
+                    <th className="opp-th">ADP</th>
+                    <th className="opp-th">Player</th>
+                    <th className="opp-th">Pos</th>
+                    <th className="opp-th">Team</th>
+                    <th className="opp-th"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr><td colSpan={5} className="opp-td text-center kickoff-text">Loading…</td></tr>
+                  ) : filtered.slice(0, 100).map((p, i) => (
+                    <tr key={p.player} className={i % 2 === 0 ? 'stripe-a' : 'stripe-b'}>
+                      <td className="opp-td">{p.overall ?? '—'}</td>
+                      <td className="opp-td" style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600 }}>{p.player}</td>
+                      <td className="opp-td">{p.pos}</td>
+                      <td className="opp-td">{p.team}</td>
+                      <td className="opp-td">
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => toggleDrafted(p, true)}
+                            style={{ fontSize: '0.65rem', fontWeight: 700, padding: '2px 8px', borderRadius: '6px', border: 'none', background: 'var(--amber)', color: '#fff', cursor: 'pointer' }}
+                          >
+                            My Pick
+                          </button>
+                          <button
+                            onClick={() => toggleDrafted(p, false)}
+                            style={{ fontSize: '0.65rem', fontWeight: 700, padding: '2px 8px', borderRadius: '6px', border: '1px solid var(--card-border)', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer' }}
+                          >
+                            Taken
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        {/* My team panel */}
+        <div style={{ flex: '1 1 260px', minWidth: '240px' }}>
+          <div className="board-card rounded-lg overflow-hidden">
+            <div className="board-card-header px-4 py-2">
+              <span className="font-display text-sm">My Team</span>
+            </div>
+            <div style={{ padding: '0.75rem 1rem' }}>
+              {ROSTER_FIELDS.map(f => {
+                const need = league[f.key] ?? 0;
+                const have = f.key === 'flex' ? 0 : (myPosCounts[f.label] || 0);
+                return (
+                  <div key={f.key} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', padding: '0.25rem 0', borderBottom: '1px solid var(--row-border)' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>{f.label}</span>
+                    <span style={{ fontWeight: 700, color: have >= need ? 'var(--amber-text)' : 'var(--text-primary)' }}>{have} / {need}</span>
+                  </div>
+                );
+              })}
+              <div style={{ marginTop: '0.75rem' }}>
+                {myTeam.length === 0 ? (
+                  <div className="text-xs kickoff-text">No picks yet.</div>
+                ) : myTeam.map(p => (
+                  <div key={p.player} style={{ fontSize: '0.78rem', padding: '0.3rem 0', display: 'flex', justifyContent: 'space-between' }}>
+                    <span>{p.player}</span>
+                    <span style={{ color: 'var(--text-muted)' }}>{p.pos}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DraftAssistantTab({ userId }) {
+  const [leagues, setLeagues] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [activeLeague, setActiveLeague] = useState(null);
+
+  const fetchLeagues = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('leagues')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      setLeagues(data || []);
+    } catch (e) {
+      setLeagues([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [userId]);
+
+  useEffect(() => { fetchLeagues(); }, [fetchLeagues]);
+
+  if (activeLeague) {
+    return <DraftBoard league={activeLeague} onBack={() => setActiveLeague(null)} />;
+  }
+
+  return (
+    <div>
+      <p className="text-sm kickoff-text mb-4">
+        Create a league profile with your draft type and roster spots, then use the Draft Board to track picks and see the best available players as your draft happens.
+      </p>
+
+      {showForm ? (
+        <LeagueSetupForm
+          userId={userId}
+          onSaved={() => { setShowForm(false); fetchLeagues(); }}
+          onCancel={() => setShowForm(false)}
+        />
+      ) : (
+        <button className="auth-submit" style={{ width: 'auto', padding: '0.6rem 1.5rem', marginBottom: '1.25rem' }} onClick={() => setShowForm(true)}>
+          + New League
+        </button>
+      )}
+
+      {loading ? (
+        <div className="text-sm kickoff-text">Loading your leagues…</div>
+      ) : leagues.length === 0 ? (
+        <div className="text-sm kickoff-text">No leagues yet — create one to get started.</div>
+      ) : (
+        <div className="flex gap-3 flex-wrap">
+          {leagues.map(l => (
+            <button
+              key={l.id}
+              onClick={() => setActiveLeague(l)}
+              className="board-card rounded-lg p-4"
+              style={{ textAlign: 'left', cursor: 'pointer', minWidth: '220px' }}
+            >
+              <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>{l.league_name}</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                {l.num_teams}-team {l.draft_type} · {l.scoring_format.toUpperCase()}
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function FantasyPointsPlaceholder({ title }) {
   return (
     <div className="board-card rounded-lg p-6 text-center mb-5">
@@ -1942,7 +2307,7 @@ export default function App() {
         .gdb-nav { background: var(--card-bg); border-bottom: 1.5px solid var(--card-border); padding: 0.65rem 1.5rem; display: flex; align-items: center; justify-content: space-between; margin: -1.5rem -1.5rem 1.5rem; }
       `}</style>
 
-      <div className={`mx-auto ${['fantasy_points','fantasy_ppg','opportunities','red_zone','adp'].includes(activeId) ? 'max-w-7xl' : 'max-w-3xl'}`}>
+      <div className={`mx-auto ${['fantasy_points','fantasy_ppg','opportunities','red_zone','adp','draft_assistant'].includes(activeId) ? 'max-w-7xl' : 'max-w-3xl'}`}>
         {showAuth && (
           <AuthModal
             onClose={() => setShowAuth(false)}
@@ -1990,7 +2355,7 @@ export default function App() {
             {/* Fantasy dropdown */}
             <div className="nav-group">
               <button
-                className={`tab-btn ${['fantasy_points','fantasy_ppg','opportunities','red_zone','adp'].includes(activeId) ? 'active' : ''}`}
+                className={`tab-btn ${['fantasy_points','fantasy_ppg','opportunities','red_zone','adp','draft_assistant'].includes(activeId) ? 'active' : ''}`}
                 onClick={() => setOpenNav(openNav === 'fantasy' ? null : 'fantasy')}
               >
                 Fantasy {openNav === 'fantasy' ? '▲' : '▼'}
@@ -2003,6 +2368,7 @@ export default function App() {
                     { id: 'fantasy_ppg', label: 'Fantasy Points Per Game' },
                     { id: 'opportunities', label: 'Player Opportunities' },
                     { id: 'red_zone', label: 'Red Zone Usage' },
+                    { id: 'draft_assistant', label: 'Draft Assistant' },
                   ].map((item) => (
                     <button
                       key={item.id}
@@ -2057,6 +2423,7 @@ export default function App() {
         {activeId === 'fantasy_points' && (session ? <FantasyDataTab title="Fantasy Points" table="fantasy_points" scoringCols={FP_SCORING_COLS} /> : <LoginPrompt onSignIn={() => setShowAuth(true)} />)}
         {activeId === 'fantasy_ppg' && (session ? <FantasyDataTab title="Fantasy Points Per Game" table="fantasy_ppg" scoringCols={FP_SCORING_COLS} /> : <LoginPrompt onSignIn={() => setShowAuth(true)} />)}
         {activeId === 'red_zone' && (session ? <RedZoneTab /> : <LoginPrompt onSignIn={() => setShowAuth(true)} />)}
+        {activeId === 'draft_assistant' && (session ? <DraftAssistantTab userId={session.user.id} /> : <LoginPrompt onSignIn={() => setShowAuth(true)} />)}
 
         {error && <div className="error-box">{error}</div>}
 
