@@ -1,25 +1,31 @@
-// Vercel serverless function — proxies ESPN's free scoreboard API
-// to avoid CORS issues in the browser.
+// Vercel serverless function — proxies ESPN's free scoreboard and summary
+// APIs to avoid CORS issues in the browser.
 //
-// Usage: /api/scores?sport=nfl  (or nba, mlb)
+// Usage:
+//   /api/scores?sport=nfl                    -> scoreboard (today's games)
+//   /api/scores?sport=nfl&eventId=401584793  -> box score / game summary
 
-const SPORT_URLS = {
-  nfl: 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard',
-  nba: 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard',
-  mlb: 'https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard',
-  nhl: 'https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard',
-  ncaaf: 'https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard',
-  wnba: 'https://site.api.espn.com/apis/site/v2/sports/basketball/wnba/scoreboard',
+const SPORT_PATHS = {
+  nfl: 'football/nfl',
+  nba: 'basketball/nba',
+  mlb: 'baseball/mlb',
+  nhl: 'hockey/nhl',
+  ncaaf: 'football/college-football',
+  wnba: 'basketball/wnba',
 };
 
 export default async function handler(req, res) {
-  const { sport = 'nfl' } = req.query;
-  const url = SPORT_URLS[sport];
+  const { sport = 'nfl', eventId } = req.query;
+  const path = SPORT_PATHS[sport];
 
-  if (!url) {
+  if (!path) {
     res.status(400).json({ error: `Unknown sport: ${sport}` });
     return;
   }
+
+  const url = eventId
+    ? `https://site.api.espn.com/apis/site/v2/sports/${path}/summary?event=${eventId}`
+    : `https://site.api.espn.com/apis/site/v2/sports/${path}/scoreboard`;
 
   try {
     const response = await fetch(url);
@@ -36,3 +42,4 @@ export default async function handler(req, res) {
     res.status(500).json({ error: err.message });
   }
 }
+

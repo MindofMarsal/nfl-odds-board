@@ -951,10 +951,101 @@ function parseESPNGame(event) {
   };
 }
 
-function ScoreTicker() {
+function GameDetailModal({ sport, eventId, onClose }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch(`/api/scores?sport=${sport}&eventId=${eventId}`);
+        const json = await res.json();
+        if (!cancelled) setData(json);
+      } catch (e) {
+        if (!cancelled) setError(e.message);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [sport, eventId]);
+
+  const header = data?.header;
+  const comp = header?.competitions?.[0];
+  const teams = comp?.competitors || [];
+  const boxscore = data?.boxscore;
+  const teamStats = boxscore?.teams || [];
+
+  return (
+    <div className="auth-overlay" onClick={onClose}>
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: '16px', padding: '1.5rem', width: '100%', maxWidth: '640px', maxHeight: '82vh', overflowY: 'auto', boxShadow: '0 12px 40px rgba(26,31,46,0.15)' }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.5rem' }}>
+          <button className="auth-close" onClick={onClose}>✕</button>
+        </div>
+
+        {loading && <div className="text-sm kickoff-text text-center" style={{ padding: '2rem 0' }}>Loading game details…</div>}
+        {error && <div className="error-box">{error}</div>}
+
+        {!loading && !error && teams.length === 2 && (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '2rem', marginBottom: '1.25rem' }}>
+              {teams.map((t, i) => (
+                <React.Fragment key={t.id}>
+                  {i === 1 && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{comp?.status?.type?.shortDetail}</span>}
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)' }}>{t.team?.abbreviation}</div>
+                    <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)' }}>{t.score}</div>
+                  </div>
+                </React.Fragment>
+              ))}
+            </div>
+
+            {teamStats.length === 2 && (
+              <div className="board-card rounded-lg overflow-hidden mb-3">
+                <div className="px-4 py-2 board-card-header">
+                  <span className="font-display text-sm">Team Stats</span>
+                </div>
+                <div style={{ padding: '0.5rem 1rem' }}>
+                  {(teamStats[0].statistics || []).map((stat, idx) => {
+                    const awayVal = teamStats[0].statistics?.[idx]?.displayValue;
+                    const homeVal = teamStats[1].statistics?.[idx]?.displayValue;
+                    return (
+                      <div key={stat.name} className="border-row" style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', alignItems: 'center', padding: '0.4rem 0' }}>
+                        <div style={{ fontSize: '0.8rem', textAlign: 'left', fontWeight: 600 }}>{awayVal ?? '—'}</div>
+                        <div style={{ fontSize: '0.7rem', textAlign: 'center', color: 'var(--text-muted)' }}>{stat.label || stat.name}</div>
+                        <div style={{ fontSize: '0.8rem', textAlign: 'right', fontWeight: 600 }}>{homeVal ?? '—'}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {!teamStats.length && (
+              <div className="text-sm kickoff-text text-center" style={{ padding: '1rem 0' }}>
+                Box score not yet available for this game.
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ScoreboardTab() {
   const [activeSport, setActiveSport] = useState('mlb');
+  const [openDropdown, setOpenDropdown] = useState(false);
   const [games, setGames] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedGame, setSelectedGame] = useState(null);
 
   const SPORTS = [
     { id: 'nfl', label: 'NFL' },
@@ -981,69 +1072,80 @@ function ScoreTicker() {
 
   useEffect(() => { fetchScores(activeSport); }, [activeSport, fetchScores]);
 
-  // Auto-refresh every 60 seconds
   useEffect(() => {
     const t = setInterval(() => fetchScores(activeSport), 60000);
     return () => clearInterval(t);
   }, [activeSport, fetchScores]);
 
+  const activeLabel = SPORTS.find(s => s.id === activeSport)?.label;
+
   return (
-    <div style={{ background: 'var(--text-primary)', color: '#fff', overflow: 'hidden', display: 'flex', alignItems: 'stretch', height: '36px', margin: '-1.5rem -1.5rem 1.25rem', userSelect: 'none' }}>
-      {/* Sport toggle buttons */}
-      <div style={{ display: 'flex', flexShrink: 0, borderRight: '1px solid rgba(255,255,255,0.12)' }}>
-        {SPORTS.map(s => (
+    <div className="board-card rounded-lg overflow-hidden mb-5">
+      {selectedGame && (
+        <GameDetailModal
+          sport={activeSport}
+          eventId={selectedGame}
+          onClose={() => setSelectedGame(null)}
+        />
+      )}
+
+      <div className="board-card-header" style={{ padding: '0.6rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div className="nav-group">
           <button
-            key={s.id}
-            onClick={() => setActiveSport(s.id)}
-            style={{
-              padding: '0 12px', height: '100%', border: 'none', cursor: 'pointer',
-              fontSize: '11px', fontWeight: 700, letterSpacing: '0.05em',
-              background: activeSport === s.id ? 'var(--amber)' : 'transparent',
-              color: activeSport === s.id ? '#fff' : 'rgba(255,255,255,0.5)',
-              borderRight: '1px solid rgba(255,255,255,0.08)',
-            }}
+            className="select-control"
+            onClick={() => setOpenDropdown(v => !v)}
+            style={{ fontWeight: 700, minWidth: '90px', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}
           >
-            {s.label}
+            {activeLabel} <span style={{ fontSize: '0.6rem' }}>{openDropdown ? '▲' : '▼'}</span>
           </button>
-        ))}
+          {openDropdown && (
+            <div className="nav-dropdown">
+              {SPORTS.map(s => (
+                <button
+                  key={s.id}
+                  className={`nav-dropdown-item ${activeSport === s.id ? 'active' : ''}`}
+                  onClick={() => { setActiveSport(s.id); setOpenDropdown(false); }}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        <span className="text-xs kickoff-text">{games.length} games today</span>
       </div>
 
-      {/* Scrolling scores */}
-      <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+      <div style={{ padding: '0.75rem 1rem', display: 'flex', flexWrap: 'wrap', gap: '0.6rem' }}>
         {loading ? (
-          <div style={{ display: 'flex', alignItems: 'center', height: '100%', paddingLeft: '12px', fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>
-            Loading scores…
-          </div>
+          <div className="text-sm kickoff-text" style={{ padding: '0.5rem 0' }}>Loading scores…</div>
         ) : games.length === 0 ? (
-          <div style={{ display: 'flex', alignItems: 'center', height: '100%', paddingLeft: '12px', fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>
-            No games today
-          </div>
+          <div className="text-sm kickoff-text" style={{ padding: '0.5rem 0' }}>No games today.</div>
         ) : (
-          <div style={{ display: 'flex', alignItems: 'center', height: '100%', animation: games.length > 4 ? 'ticker 30s linear infinite' : 'none', whiteSpace: 'nowrap' }}>
-            {[...games, ...(games.length > 4 ? games : [])].map((g, i) => (
-              <div key={`${g.id}-${i}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '0 16px', borderRight: '1px solid rgba(255,255,255,0.08)', height: '100%', fontSize: '12px' }}>
-                <span style={{ fontWeight: 700, color: 'rgba(255,255,255,0.9)' }}>{g.away.abbr}</span>
-                {g.state !== 'pre' && <span style={{ fontWeight: 800, color: '#fff', minWidth: '14px', textAlign: 'right' }}>{g.away.score}</span>}
-                <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '10px' }}>@</span>
-                <span style={{ fontWeight: 700, color: 'rgba(255,255,255,0.9)' }}>{g.home.abbr}</span>
-                {g.state !== 'pre' && <span style={{ fontWeight: 800, color: '#fff', minWidth: '14px' }}>{g.home.score}</span>}
-                <span style={{
-                  fontSize: '10px', fontWeight: 600,
-                  color: g.state === 'in' ? '#FFD27A' : 'rgba(255,255,255,0.4)',
-                  marginLeft: '2px',
-                }}>
-                  {g.detail}
-                </span>
+          games.map(g => (
+            <button
+              key={g.id}
+              onClick={() => setSelectedGame(g.id)}
+              className="board-card"
+              style={{
+                cursor: 'pointer', borderRadius: '10px', padding: '0.5rem 0.85rem',
+                minWidth: '140px', textAlign: 'left', background: 'var(--row-alt)',
+                border: '1px solid var(--card-border)',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+                <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)' }}>{g.away.abbr}</span>
+                {g.state !== 'pre' && <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-primary)' }}>{g.away.score}</span>}
               </div>
-            ))}
-          </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)' }}>{g.home.abbr}</span>
+                {g.state !== 'pre' && <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-primary)' }}>{g.home.score}</span>}
+              </div>
+              <div style={{ fontSize: '0.68rem', fontWeight: 600, color: g.state === 'in' ? 'var(--amber-text)' : 'var(--text-muted)' }}>
+                {g.detail}
+              </div>
+            </button>
+          ))
         )}
-        <style>{`
-          @keyframes ticker {
-            0% { transform: translateX(0); }
-            100% { transform: translateX(-50%); }
-          }
-        `}</style>
       </div>
     </div>
   );
@@ -1849,7 +1951,7 @@ export default function App() {
           />
         )}
 
-        <ScoreTicker />
+        <ScoreboardTab />
 
         <div className="flex items-center justify-between mb-3 flex-wrap gap-2" style={{ borderBottom: '1.5px solid var(--card-border)', paddingBottom: '0.75rem', marginBottom: '1rem' }}>
           <div className="gdb-logo">
