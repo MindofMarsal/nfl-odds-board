@@ -1416,7 +1416,7 @@ function AuthModal({ onClose, onAuth }) {
 }
 
 export default function App() {
-  const [activeId, setActiveId] = useState('fantasy_points');
+  const [activeId, setActiveId] = useState('adp');
   const [openNav, setOpenNav] = useState(null);
   const [cache, setCache] = useState({});
   const [loading, setLoading] = useState(false);
@@ -1427,6 +1427,7 @@ export default function App() {
   const [session, setSession] = useState(null);
   const [showAuth, setShowAuth] = useState(false);
   const [supabaseReady, setSupabaseReady] = useState(false);
+  const [showPrivacy, setShowPrivacy] = useState(false);
 
   // Listen for Supabase auth state changes (login, logout, session restore).
   useEffect(() => {
@@ -1777,11 +1778,11 @@ export default function App() {
               {openNav === 'fantasy' && (
                 <div className="nav-dropdown">
                   {[
+                    { id: 'adp', label: 'Average Draft Position (ADP)' },
                     { id: 'fantasy_points', label: 'Fantasy Points' },
                     { id: 'fantasy_ppg', label: 'Fantasy Points Per Game' },
                     { id: 'opportunities', label: 'Player Opportunities' },
                     { id: 'red_zone', label: 'Red Zone Usage' },
-                    { id: 'adp', label: 'Average Draft Position (ADP)' },
                   ].map((item) => (
                     <button
                       key={item.id}
@@ -1888,6 +1889,63 @@ export default function App() {
                 )}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Footer */}
+        <div style={{ borderTop: '1px solid var(--card-border)', marginTop: '2.5rem', paddingTop: '1rem', paddingBottom: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+            © {new Date().getFullYear()} Game Day Blueprint. All rights reserved.
+          </span>
+          <div style={{ display: 'flex', gap: '1rem' }}>
+            <button
+              onClick={() => setShowPrivacy(true)}
+              style={{ fontSize: '0.75rem', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}
+            >
+              Privacy Policy
+            </button>
+          </div>
+        </div>
+
+        {/* Privacy Policy Modal */}
+        {showPrivacy && (
+          <div className="auth-overlay" onClick={() => setShowPrivacy(false)}>
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: '16px', padding: '2rem', width: '100%', maxWidth: '600px', maxHeight: '80vh', overflowY: 'auto', boxShadow: '0 12px 40px rgba(26,31,46,0.15)' }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>Privacy Policy</h2>
+                <button className="auth-close" onClick={() => setShowPrivacy(false)}>✕</button>
+              </div>
+              <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.7 }}>
+                <p style={{ marginBottom: '0.75rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>Last updated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+
+                <h3 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.4rem', marginTop: '1rem' }}>1. Information We Collect</h3>
+                <p>When you create an account on Game Day Blueprint, we collect your email address and a password (stored securely in encrypted form). We do not collect your name, address, phone number, or payment information.</p>
+
+                <h3 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.4rem', marginTop: '1rem' }}>2. How We Use Your Information</h3>
+                <p>Your email address is used solely to create and manage your account and to allow you to sign in to Game Day Blueprint. We do not sell, rent, or share your personal information with third parties for marketing purposes.</p>
+
+                <h3 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.4rem', marginTop: '1rem' }}>3. Data Storage</h3>
+                <p>Your account data is stored securely using Supabase, a third-party authentication and database service. Supabase employs industry-standard encryption and security practices. You can review Supabase's privacy practices at supabase.com.</p>
+
+                <h3 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.4rem', marginTop: '1rem' }}>4. Cookies & Tracking</h3>
+                <p>Game Day Blueprint uses session tokens to keep you signed in. We do not use advertising cookies or track your behavior for marketing purposes.</p>
+
+                <h3 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.4rem', marginTop: '1rem' }}>5. Sports Betting Disclaimer</h3>
+                <p>Game Day Blueprint provides sports odds and fantasy football data for informational purposes only. We do not facilitate gambling transactions. Sports betting laws vary by jurisdiction — please ensure betting is legal in your location before using any sportsbook. If you or someone you know has a gambling problem, call 1-800-GAMBLER for help.</p>
+
+                <h3 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.4rem', marginTop: '1rem' }}>6. Your Rights</h3>
+                <p>You may request deletion of your account and associated data at any time by contacting us. Upon request, we will permanently delete your account information from our systems.</p>
+
+                <h3 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.4rem', marginTop: '1rem' }}>7. Changes to This Policy</h3>
+                <p>We may update this Privacy Policy from time to time. Any changes will be reflected on this page with an updated date. Continued use of Game Day Blueprint after changes constitutes acceptance of the updated policy.</p>
+
+                <h3 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.4rem', marginTop: '1rem' }}>8. Contact</h3>
+                <p>If you have any questions about this Privacy Policy, please reach out through the Game Day Blueprint website.</p>
+              </div>
+            </div>
           </div>
         )}
       </div>
