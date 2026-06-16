@@ -1060,6 +1060,73 @@ function TwoQbAdpTab() {
   );
 }
 
+function ByeWeeksTab() {
+  const [byeWeeks, setByeWeeks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchByeWeeks = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data, error } = await supabase
+        .from('bye_weeks')
+        .select('*')
+        .eq('season', 2026)
+        .order('week', { ascending: true });
+      if (error) throw error;
+      setByeWeeks(data || []);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchByeWeeks(); }, [fetchByeWeeks]);
+
+  // Group by week
+  const byWeek = {};
+  byeWeeks.forEach(row => {
+    if (!byWeek[row.week]) byWeek[row.week] = [];
+    byWeek[row.week].push(row.team);
+  });
+  const weeks = Object.keys(byWeek).map(Number).sort((a, b) => a - b);
+
+  return (
+    <div>
+      <p className="text-sm kickoff-text mb-4">
+        2026 NFL bye weeks by team.
+      </p>
+
+      {error && <div className="error-box">{error}</div>}
+
+      {!error && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+          {loading ? (
+            <div className="text-sm kickoff-text">Loading…</div>
+          ) : weeks.length === 0 ? (
+            <div className="text-sm kickoff-text">No bye week data found.</div>
+          ) : weeks.map(week => (
+            <div key={week} className="board-card rounded-lg overflow-hidden">
+              <div className="board-card-header px-4 py-2">
+                <span className="font-display text-sm">Week {week}</span>
+              </div>
+              <div style={{ padding: '0.6rem 1rem' }}>
+                {byWeek[week].map(team => (
+                  <div key={team} style={{ fontSize: '0.82rem', padding: '0.25rem 0', color: 'var(--text-primary)' }}>
+                    {team}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Transforms ESPN scoreboard event into a compact ticker item
 function parseESPNGame(event) {
   const comp = event.competitions?.[0];
@@ -1208,7 +1275,7 @@ function ScoreboardTab() {
   const activeLabel = SPORTS.find(s => s.id === activeSport)?.label;
 
   return (
-    <div className="board-card rounded-lg overflow-hidden mb-5">
+    <div className="board-card rounded-lg mb-5" style={{ overflow: 'visible', position: 'relative' }}>
       {selectedGame && (
         <GameDetailModal
           sport={activeSport}
@@ -1217,7 +1284,7 @@ function ScoreboardTab() {
         />
       )}
 
-      <div style={{ display: 'flex', alignItems: 'stretch', height: '54px' }}>
+      <div style={{ display: 'flex', alignItems: 'stretch', height: '54px', borderRadius: '8px', overflow: 'hidden' }}>
         <div className="nav-group" style={{ flexShrink: 0, borderRight: '1px solid var(--card-border)' }}>
           <button
             onClick={() => setOpenDropdown(v => !v)}
@@ -1679,8 +1746,6 @@ function DraftBoard({ league, onBack }) {
   const [search, setSearch] = useState('');
   const [picks, setPicks] = useState([]); // [{ player, pos, team, teamIndex, pickNumber }]
   const [myTeamIndex, setMyTeamIndex] = useState(0);
-  const [clockIndex, setClockIndex] = useState(0);
-  const [assignFor, setAssignFor] = useState(null); // player object pending team assignment
   const [showBoardModal, setShowBoardModal] = useState(false);
 
   const positions = ['ALL', 'QB', 'RB', 'WR', 'TE', 'K', 'DST'];
@@ -1727,15 +1792,24 @@ function DraftBoard({ league, onBack }) {
     return true;
   });
 
-  const confirmAssign = (teamIndex) => {
-    if (!assignFor) return;
-    setPicks(p => [...p, { ...assignFor, teamIndex, pickNumber: p.length + 1 }]);
-    setAssignFor(null);
-    setClockIndex(i => (i + 1) % numDrafters);
+  // Snake draft: odd rounds go 0→N-1, even rounds reverse N-1→0.
+  // Auction: order doesn't really matter for nominations, so we just cycle round-robin.
+  const teamIndexForPick = (pickCount) => {
+    const round = Math.floor(pickCount / numDrafters);
+    const slot = pickCount % numDrafters;
+    if (league.draft_type === 'snake' && round % 2 === 1) {
+      return numDrafters - 1 - slot;
+    }
+    return slot;
+  };
+
+  const draftPlayer = (player) => {
+    const teamIndex = teamIndexForPick(picks.length);
+    setPicks(p => [...p, { ...player, teamIndex, pickNumber: p.length + 1 }]);
   };
 
   const undoPick = (pickIdx) => {
-    setPicks(p => p.filter((_, i) => i !== pickIdx).map((p2, i) => ({ ...p2, pickNumber: i + 1 })));
+    setPicks(p => p.filter((_, i) => i !== pickIdx).map((p2, i) => ({ ...p2, teamIndex: teamIndexForPick(i), pickNumber: i + 1 })));
   };
 
   const myPicks = picks.filter(p => p.teamIndex === myTeamIndex);
@@ -1747,39 +1821,10 @@ function DraftBoard({ league, onBack }) {
 
   const currentRound = Math.floor(picks.length / numDrafters) + 1;
   const pickInRound = (picks.length % numDrafters) + 1;
+  const clockIndex = teamIndexForPick(picks.length);
 
   return (
     <div>
-      {assignFor && (
-        <div className="auth-overlay" onClick={() => setAssignFor(null)}>
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: '16px', padding: '1.5rem', width: '100%', maxWidth: '420px', boxShadow: '0 12px 40px rgba(26,31,46,0.15)' }}
-          >
-            <div style={{ fontWeight: 700, marginBottom: '0.25rem' }}>{assignFor.player}</div>
-            <div className="text-xs kickoff-text" style={{ marginBottom: '1rem' }}>Who drafted this player?</div>
-            <div className="flex gap-2 flex-wrap" style={{ maxHeight: '280px', overflowY: 'auto' }}>
-              {teamLabels.map((label, i) => (
-                <button
-                  key={i}
-                  onClick={() => confirmAssign(i)}
-                  style={{
-                    fontSize: '0.78rem', fontWeight: 600, padding: '0.4rem 0.8rem', borderRadius: '8px',
-                    border: i === myTeamIndex ? '1.5px solid var(--amber)' : '1px solid var(--card-border)',
-                    background: i === myTeamIndex ? 'var(--amber-soft)' : 'var(--card-bg)',
-                    color: i === myTeamIndex ? 'var(--amber-text)' : 'var(--text-primary)',
-                    cursor: 'pointer',
-                  }}
-                >
-                  {label}{i === myTeamIndex ? ' (Me)' : ''}
-                </button>
-              ))}
-            </div>
-            <button className="refresh-btn" style={{ marginTop: '1rem' }} onClick={() => setAssignFor(null)}>Cancel</button>
-          </div>
-        </div>
-      )}
-
       <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
         <div>
           <div className="font-display text-base">{league.league_name}</div>
@@ -1858,7 +1903,7 @@ function DraftBoard({ league, onBack }) {
                       <td className="opp-td">{p.team}</td>
                       <td className="opp-td">
                         <button
-                          onClick={() => setAssignFor(p)}
+                          onClick={() => draftPlayer(p)}
                           style={{ fontSize: '0.65rem', fontWeight: 700, padding: '2px 10px', borderRadius: '6px', border: 'none', background: 'var(--amber)', color: '#fff', cursor: 'pointer' }}
                         >
                           Draft
@@ -2624,7 +2669,7 @@ export default function App() {
         .gdb-nav { background: var(--card-bg); border-bottom: 1.5px solid var(--card-border); padding: 0.65rem 1.5rem; display: flex; align-items: center; justify-content: space-between; margin: -1.5rem -1.5rem 1.5rem; }
       `}</style>
 
-      <div className={`mx-auto ${['fantasy_points','fantasy_ppg','opportunities','red_zone','adp','adp_2qb','draft_assistant'].includes(activeId) ? 'max-w-7xl' : 'max-w-3xl'}`}>
+      <div className={`mx-auto ${['fantasy_points','fantasy_ppg','opportunities','red_zone','adp','adp_2qb','draft_assistant','bye_weeks'].includes(activeId) ? 'max-w-7xl' : 'max-w-3xl'}`}>
         {showAuth && (
           <AuthModal
             onClose={() => setShowAuth(false)}
@@ -2672,7 +2717,7 @@ export default function App() {
             {/* Fantasy dropdown */}
             <div className="nav-group">
               <button
-                className={`tab-btn ${['fantasy_points','fantasy_ppg','opportunities','red_zone','adp','adp_2qb','draft_assistant'].includes(activeId) ? 'active' : ''}`}
+                className={`tab-btn ${['fantasy_points','fantasy_ppg','opportunities','red_zone','adp','adp_2qb','draft_assistant','bye_weeks'].includes(activeId) ? 'active' : ''}`}
                 onClick={() => setOpenNav(openNav === 'fantasy' ? null : 'fantasy')}
               >
                 Fantasy {openNav === 'fantasy' ? '▲' : '▼'}
@@ -2687,6 +2732,7 @@ export default function App() {
                     { id: 'opportunities', label: 'Player Opportunities' },
                     { id: 'red_zone', label: 'Red Zone Usage' },
                     { id: 'draft_assistant', label: 'Draft Assistant' },
+                    { id: 'bye_weeks', label: 'NFL Bye Weeks' },
                   ].map((item) => (
                     <button
                       key={item.id}
@@ -2738,6 +2784,7 @@ export default function App() {
 
         {activeId === 'adp' && <FantasyAdpTab />}
         {activeId === 'adp_2qb' && <TwoQbAdpTab />}
+        {activeId === 'bye_weeks' && <ByeWeeksTab />}
         {activeId === 'opportunities' && (session ? <OpportunitiesTab /> : <LoginPrompt onSignIn={() => setShowAuth(true)} />)}
         {activeId === 'fantasy_points' && (session ? <FantasyDataTab title="Fantasy Points" table="fantasy_points" scoringCols={FP_SCORING_COLS} /> : <LoginPrompt onSignIn={() => setShowAuth(true)} />)}
         {activeId === 'fantasy_ppg' && (session ? <FantasyDataTab title="Fantasy Points Per Game" table="fantasy_ppg" scoringCols={FP_SCORING_COLS} /> : <LoginPrompt onSignIn={() => setShowAuth(true)} />)}
