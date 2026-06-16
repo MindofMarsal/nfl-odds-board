@@ -1089,14 +1089,17 @@ function ScoreboardTab() {
         />
       )}
 
-      <div className="board-card-header" style={{ padding: '0.6rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div className="nav-group">
+      <div style={{ display: 'flex', alignItems: 'stretch', height: '54px' }}>
+        <div className="nav-group" style={{ flexShrink: 0, borderRight: '1px solid var(--card-border)' }}>
           <button
-            className="select-control"
             onClick={() => setOpenDropdown(v => !v)}
-            style={{ fontWeight: 700, minWidth: '90px', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}
+            style={{
+              height: '100%', padding: '0 1rem', border: 'none', background: 'var(--card-header-bg)',
+              fontWeight: 700, fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '6px',
+              cursor: 'pointer', color: 'var(--text-primary)', whiteSpace: 'nowrap',
+            }}
           >
-            {activeLabel} <span style={{ fontSize: '0.6rem' }}>{openDropdown ? '▲' : '▼'}</span>
+            {activeLabel} <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>{openDropdown ? '▲' : '▼'}</span>
           </button>
           {openDropdown && (
             <div className="nav-dropdown">
@@ -1112,39 +1115,41 @@ function ScoreboardTab() {
             </div>
           )}
         </div>
-        <span className="text-xs kickoff-text">{games.length} games today</span>
-      </div>
 
-      <div style={{ padding: '0.75rem 1rem', display: 'flex', flexWrap: 'wrap', gap: '0.6rem' }}>
-        {loading ? (
-          <div className="text-sm kickoff-text" style={{ padding: '0.5rem 0' }}>Loading scores…</div>
-        ) : games.length === 0 ? (
-          <div className="text-sm kickoff-text" style={{ padding: '0.5rem 0' }}>No games today.</div>
-        ) : (
-          games.map(g => (
-            <button
-              key={g.id}
-              onClick={() => setSelectedGame(g.id)}
-              className="board-card"
-              style={{
-                cursor: 'pointer', borderRadius: '10px', padding: '0.5rem 0.85rem',
-                minWidth: '160px', textAlign: 'left', background: 'var(--row-alt)',
-                border: '1px solid var(--card-border)',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)' }}>{g.away.abbr}</span>
-                {g.state !== 'pre' && <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-primary)' }}>{g.away.score}</span>}
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>@</span>
-                <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)' }}>{g.home.abbr}</span>
-                {g.state !== 'pre' && <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-primary)' }}>{g.home.score}</span>}
-              </div>
-              <div style={{ fontSize: '0.68rem', fontWeight: 600, color: g.state === 'in' ? 'var(--amber-text)' : 'var(--text-muted)' }}>
-                {g.detail}
-              </div>
-            </button>
-          ))
-        )}
+        <div style={{ flex: 1, overflowX: 'auto', display: 'flex', alignItems: 'stretch', whiteSpace: 'nowrap' }}>
+          {loading ? (
+            <div className="text-xs kickoff-text" style={{ display: 'flex', alignItems: 'center', padding: '0 1rem' }}>Loading scores…</div>
+          ) : games.length === 0 ? (
+            <div className="text-xs kickoff-text" style={{ display: 'flex', alignItems: 'center', padding: '0 1rem' }}>No games today.</div>
+          ) : (
+            games.map(g => (
+              <button
+                key={g.id}
+                onClick={() => setSelectedGame(g.id)}
+                style={{
+                  cursor: 'pointer', border: 'none', borderRight: '1px solid var(--row-border)',
+                  background: 'transparent', padding: '0 0.9rem', display: 'inline-flex',
+                  flexDirection: 'column', justifyContent: 'center', minWidth: '120px', flexShrink: 0,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <span style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--text-primary)' }}>{g.away.abbr}</span>
+                  {g.state !== 'pre' && <span style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--text-primary)' }}>{g.away.score}</span>}
+                  <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>@</span>
+                  <span style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--text-primary)' }}>{g.home.abbr}</span>
+                  {g.state !== 'pre' && <span style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--text-primary)' }}>{g.home.score}</span>}
+                </div>
+                <div style={{ fontSize: '0.6rem', fontWeight: 600, color: g.state === 'in' ? 'var(--amber-text)' : 'var(--text-muted)', marginTop: '1px' }}>
+                  {g.detail}
+                </div>
+              </button>
+            ))
+          )}
+        </div>
+
+        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 1rem', borderLeft: '1px solid var(--card-border)' }}>
+          <span className="text-xs kickoff-text" style={{ whiteSpace: 'nowrap' }}>{games.length} games</span>
+        </div>
       </div>
     </div>
   );
@@ -1544,10 +1549,14 @@ function DraftBoard({ league, onBack }) {
   const [loading, setLoading] = useState(true);
   const [pos, setPos] = useState('ALL');
   const [search, setSearch] = useState('');
-  const [drafted, setDrafted] = useState({}); // { player: teamSlotInfo }
-  const [myTeam, setMyTeam] = useState([]);
+  const [picks, setPicks] = useState([]); // [{ player, pos, team, teamIndex, pickNumber }]
+  const [myTeamIndex, setMyTeamIndex] = useState(0);
+  const [clockIndex, setClockIndex] = useState(0);
+  const [assignFor, setAssignFor] = useState(null); // player object pending team assignment
 
   const positions = ['ALL', 'QB', 'RB', 'WR', 'TE', 'K', 'DST'];
+  const numDrafters = league.num_teams || 12;
+  const teamLabels = Array.from({ length: numDrafters }, (_, i) => `Team ${i + 1}`);
 
   const fetchPlayers = useCallback(async () => {
     setLoading(true);
@@ -1569,19 +1578,7 @@ function DraftBoard({ league, onBack }) {
 
   useEffect(() => { fetchPlayers(); }, [fetchPlayers]);
 
-  const toggleDrafted = (player, byMe) => {
-    setDrafted(d => {
-      const next = { ...d };
-      if (next[player.player]) {
-        delete next[player.player];
-        setMyTeam(team => team.filter(p => p.player !== player.player));
-      } else {
-        next[player.player] = true;
-        if (byMe) setMyTeam(team => [...team, player]);
-      }
-      return next;
-    });
-  };
+  const draftedNames = new Set(picks.map(p => p.player));
 
   const ROSTER_FIELDS = [
     { key: 'qb', label: 'QB' },
@@ -1595,32 +1592,91 @@ function DraftBoard({ league, onBack }) {
   ];
 
   const filtered = players.filter(p => {
-    if (drafted[p.player]) return false;
+    if (draftedNames.has(p.player)) return false;
     if (pos !== 'ALL' && !p.pos?.startsWith(pos)) return false;
     if (search && !p.player?.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
 
+  const confirmAssign = (teamIndex) => {
+    if (!assignFor) return;
+    setPicks(p => [...p, { ...assignFor, teamIndex, pickNumber: p.length + 1 }]);
+    setAssignFor(null);
+    setClockIndex(i => (i + 1) % numDrafters);
+  };
+
+  const undoPick = (pickIdx) => {
+    setPicks(p => p.filter((_, i) => i !== pickIdx).map((p2, i) => ({ ...p2, pickNumber: i + 1 })));
+  };
+
+  const myPicks = picks.filter(p => p.teamIndex === myTeamIndex);
   const myPosCounts = {};
-  myTeam.forEach(p => {
+  myPicks.forEach(p => {
     const base = (p.pos || '').replace(/[0-9]/g, '');
     myPosCounts[base] = (myPosCounts[base] || 0) + 1;
   });
 
+  const currentRound = Math.floor(picks.length / numDrafters) + 1;
+  const pickInRound = (picks.length % numDrafters) + 1;
+
   return (
     <div>
-      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+      {assignFor && (
+        <div className="auth-overlay" onClick={() => setAssignFor(null)}>
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: '16px', padding: '1.5rem', width: '100%', maxWidth: '420px', boxShadow: '0 12px 40px rgba(26,31,46,0.15)' }}
+          >
+            <div style={{ fontWeight: 700, marginBottom: '0.25rem' }}>{assignFor.player}</div>
+            <div className="text-xs kickoff-text" style={{ marginBottom: '1rem' }}>Who drafted this player?</div>
+            <div className="flex gap-2 flex-wrap" style={{ maxHeight: '280px', overflowY: 'auto' }}>
+              {teamLabels.map((label, i) => (
+                <button
+                  key={i}
+                  onClick={() => confirmAssign(i)}
+                  style={{
+                    fontSize: '0.78rem', fontWeight: 600, padding: '0.4rem 0.8rem', borderRadius: '8px',
+                    border: i === myTeamIndex ? '1.5px solid var(--amber)' : '1px solid var(--card-border)',
+                    background: i === myTeamIndex ? 'var(--amber-soft)' : 'var(--card-bg)',
+                    color: i === myTeamIndex ? 'var(--amber-text)' : 'var(--text-primary)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {label}{i === myTeamIndex ? ' (Me)' : ''}
+                </button>
+              ))}
+            </div>
+            <button className="refresh-btn" style={{ marginTop: '1rem' }} onClick={() => setAssignFor(null)}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
         <div>
           <div className="font-display text-base">{league.league_name}</div>
           <div className="text-xs kickoff-text">
-            {league.num_teams}-team {league.draft_type} · {league.scoring_format.toUpperCase()}{league.superflex ? ' · Superflex' : ''} · {Object.keys(drafted).length} drafted
+            {league.num_teams}-team {league.draft_type} · {league.scoring_format.toUpperCase()}{league.superflex ? ' · Superflex' : ''}
           </div>
         </div>
         <button className="refresh-btn" onClick={onBack}>← Back to Leagues</button>
       </div>
 
+      <div className="board-card rounded-lg mb-4" style={{ padding: '0.75rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <span className="text-xs kickoff-text">Round {currentRound} · Pick {pickInRound}</span>
+          <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--amber-text)', background: 'var(--amber-soft)', padding: '0.3rem 0.7rem', borderRadius: '20px' }}>
+            On the clock: {teamLabels[clockIndex]}{clockIndex === myTeamIndex ? ' (Me)' : ''}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <label className="text-xs kickoff-text">My team:</label>
+          <select className="select-control" value={myTeamIndex} onChange={(e) => setMyTeamIndex(Number(e.target.value))}>
+            {teamLabels.map((label, i) => <option key={i} value={i}>{label}</option>)}
+          </select>
+        </div>
+      </div>
+
       <div className="flex gap-4 flex-wrap" style={{ alignItems: 'flex-start' }}>
-        {/* Available players */}
         <div style={{ flex: '2 1 480px', minWidth: '320px' }}>
           {league.superflex && (
             <div className="text-xs kickoff-text mb-3" style={{ background: 'var(--amber-soft)', padding: '0.5rem 0.75rem', borderRadius: '8px' }}>
@@ -1648,7 +1704,7 @@ function DraftBoard({ league, onBack }) {
               <span className="font-display text-sm">Best Available</span>
               <span className="text-xs kickoff-text">{filtered.length} players</span>
             </div>
-            <div style={{ maxHeight: '560px', overflowY: 'auto' }}>
+            <div style={{ maxHeight: '480px', overflowY: 'auto' }}>
               <table className="opp-table">
                 <thead>
                   <tr>
@@ -1669,20 +1725,12 @@ function DraftBoard({ league, onBack }) {
                       <td className="opp-td">{p.pos}</td>
                       <td className="opp-td">{p.team}</td>
                       <td className="opp-td">
-                        <div className="flex gap-1">
-                          <button
-                            onClick={() => toggleDrafted(p, true)}
-                            style={{ fontSize: '0.65rem', fontWeight: 700, padding: '2px 8px', borderRadius: '6px', border: 'none', background: 'var(--amber)', color: '#fff', cursor: 'pointer' }}
-                          >
-                            My Pick
-                          </button>
-                          <button
-                            onClick={() => toggleDrafted(p, false)}
-                            style={{ fontSize: '0.65rem', fontWeight: 700, padding: '2px 8px', borderRadius: '6px', border: '1px solid var(--card-border)', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer' }}
-                          >
-                            Taken
-                          </button>
-                        </div>
+                        <button
+                          onClick={() => setAssignFor(p)}
+                          style={{ fontSize: '0.65rem', fontWeight: 700, padding: '2px 10px', borderRadius: '6px', border: 'none', background: 'var(--amber)', color: '#fff', cursor: 'pointer' }}
+                        >
+                          Draft
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -1692,11 +1740,10 @@ function DraftBoard({ league, onBack }) {
           </div>
         </div>
 
-        {/* My team panel */}
         <div style={{ flex: '1 1 260px', minWidth: '240px' }}>
           <div className="board-card rounded-lg overflow-hidden">
             <div className="board-card-header px-4 py-2">
-              <span className="font-display text-sm">My Team</span>
+              <span className="font-display text-sm">My Team — {teamLabels[myTeamIndex]}</span>
             </div>
             <div style={{ padding: '0.75rem 1rem' }}>
               {ROSTER_FIELDS.map(f => {
@@ -1710,9 +1757,9 @@ function DraftBoard({ league, onBack }) {
                 );
               })}
               <div style={{ marginTop: '0.75rem' }}>
-                {myTeam.length === 0 ? (
+                {myPicks.length === 0 ? (
                   <div className="text-xs kickoff-text">No picks yet.</div>
-                ) : myTeam.map(p => (
+                ) : myPicks.map(p => (
                   <div key={p.player} style={{ fontSize: '0.78rem', padding: '0.3rem 0', display: 'flex', justifyContent: 'space-between' }}>
                     <span>{p.player}</span>
                     <span style={{ color: 'var(--text-muted)' }}>{p.pos}</span>
@@ -1723,6 +1770,53 @@ function DraftBoard({ league, onBack }) {
           </div>
         </div>
       </div>
+
+      {picks.length > 0 && (
+        <div className="board-card rounded-lg overflow-hidden mt-4">
+          <div className="board-card-header px-4 py-2">
+            <span className="font-display text-sm">Draft Board</span>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', overflowX: 'auto', padding: '0.75rem' }}>
+            {teamLabels.map((label, teamIdx) => {
+              const teamPicks = picks.filter(p => p.teamIndex === teamIdx);
+              const isMe = teamIdx === myTeamIndex;
+              return (
+                <div
+                  key={teamIdx}
+                  style={{
+                    minWidth: '130px', flexShrink: 0, borderRadius: '8px', overflow: 'hidden',
+                    border: isMe ? '1.5px solid var(--amber)' : '1px solid var(--card-border)',
+                  }}
+                >
+                  <div style={{ padding: '0.4rem 0.6rem', background: isMe ? 'var(--amber-soft)' : 'var(--row-alt)', fontSize: '0.7rem', fontWeight: 700, color: isMe ? 'var(--amber-text)' : 'var(--text-primary)' }}>
+                    {label}{isMe ? ' (Me)' : ''}
+                  </div>
+                  {teamPicks.length === 0 ? (
+                    <div style={{ padding: '0.5rem 0.6rem', fontSize: '0.68rem', color: 'var(--text-muted)' }}>No picks</div>
+                  ) : teamPicks.map((p) => {
+                    const pickIdx = picks.indexOf(p);
+                    return (
+                      <div key={p.player} style={{ padding: '0.4rem 0.6rem', borderTop: '1px solid var(--row-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '4px' }}>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.player}</div>
+                          <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>{p.pos} · #{p.pickNumber}</div>
+                        </div>
+                        <button
+                          onClick={() => undoPick(pickIdx)}
+                          title="Undo this pick"
+                          style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.7rem', flexShrink: 0 }}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
