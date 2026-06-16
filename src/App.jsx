@@ -1128,15 +1128,14 @@ function ScoreboardTab() {
               className="board-card"
               style={{
                 cursor: 'pointer', borderRadius: '10px', padding: '0.5rem 0.85rem',
-                minWidth: '140px', textAlign: 'left', background: 'var(--row-alt)',
+                minWidth: '160px', textAlign: 'left', background: 'var(--row-alt)',
                 border: '1px solid var(--card-border)',
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
                 <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)' }}>{g.away.abbr}</span>
                 {g.state !== 'pre' && <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-primary)' }}>{g.away.score}</span>}
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>@</span>
                 <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)' }}>{g.home.abbr}</span>
                 {g.state !== 'pre' && <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-primary)' }}>{g.home.score}</span>}
               </div>
