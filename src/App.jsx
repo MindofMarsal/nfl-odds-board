@@ -814,125 +814,118 @@ function NflFuturesTab() {
 }
 
 function FantasyAdpTab() {
-  const [format, setFormat] = useState('standard');
-  const [teamSize, setTeamSize] = useState(12);
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [showDebug, setShowDebug] = useState(false);
+  const [season, setSeason] = useState(2026);
+  const [pos, setPos] = useState('ALL');
+  const [sortBy, setSortBy] = useState('overall');
+  const [sortDir, setSortDir] = useState('asc');
+
+  const positions = ['ALL', 'QB', 'RB', 'WR', 'TE', 'K', 'DST'];
 
   const fetchAdp = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const year = new Date().getFullYear();
-      const url = `/api/adp?format=${format}&teams=${teamSize}&year=${year}`;
-      const res = await fetch(url);
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`API error (${res.status}): ${text.slice(0, 150)}`);
+      let query = supabase
+        .from('adp')
+        .select('*')
+        .eq('season', season)
+        .order(sortBy, { ascending: sortDir === 'asc', nullsFirst: false });
+      if (pos !== 'ALL') {
+        query = query.ilike('pos', `${pos}%`);
       }
-      const json = await res.json();
-      setData(json);
+      const { data, error } = await query;
+      if (error) throw error;
+      setData(data || []);
     } catch (e) {
       setError(e.message);
     } finally {
       setLoading(false);
     }
-  }, [format, teamSize]);
+  }, [season, pos, sortBy, sortDir]);
 
-  useEffect(() => {
-    fetchAdp();
-  }, [fetchAdp]);
+  useEffect(() => { fetchAdp(); }, [fetchAdp]);
 
-  const players = data?.players || [];
-  const cols = '48px 1fr 56px 60px 70px 90px';
+  const handleSort = (col) => {
+    if (sortBy === col) setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+    else { setSortBy(col); setSortDir('asc'); }
+  };
+
+  const PLATFORM_COLS = [
+    { key: 'cbs', label: 'CBS' },
+    { key: 'espn', label: 'ESPN' },
+    { key: 'yahoo', label: 'Yahoo' },
+    { key: 'nffc', label: 'NFFC' },
+    { key: 'mfl', label: 'MFL' },
+    { key: 'draftkings', label: 'DraftKings' },
+    { key: 'drafters', label: 'Drafters' },
+    { key: 'underdog', label: 'Underdog' },
+  ];
+
+  const allCols = [
+    { key: 'overall', label: 'Overall' },
+    { key: 'player', label: 'Player' },
+    { key: 'pos', label: 'Pos' },
+    { key: 'team', label: 'Team' },
+    { key: 'bye', label: 'Bye' },
+    ...PLATFORM_COLS,
+  ];
 
   return (
     <div>
       <p className="text-sm kickoff-text mb-4">
-        Consensus Average Draft Position from FantasyFootballCalculator&apos;s mock draft pool —
-        a single community-sourced ranking (not yet broken out by individual platform).
+        Multi-platform ADP rankings from CBS, ESPN, Yahoo, NFFC, MFL, DraftKings, Drafters &amp; Underdog.
+        Click any column header to sort. Updated manually — upload a new Excel file to refresh.
       </p>
 
-      <div className="flex items-center justify-between flex-wrap gap-2 mb-5">
-        <div className="flex gap-2 flex-wrap items-center">
-          <select className="select-control" value={format} onChange={(e) => setFormat(e.target.value)}>
-            {FANTASY_FORMATS.map((f) => (
-              <option key={f.id} value={f.id}>{f.label}</option>
-            ))}
-          </select>
-          <select className="select-control" value={teamSize} onChange={(e) => setTeamSize(Number(e.target.value))}>
-            {FANTASY_TEAM_SIZES.map((t) => (
-              <option key={t} value={t}>{t}-team</option>
-            ))}
-          </select>
-        </div>
+      <div className="flex items-center gap-2 flex-wrap mb-4">
+        <select className="select-control" value={season} onChange={(e) => setSeason(Number(e.target.value))}>
+          <option value={2026}>2026</option>
+        </select>
+        <select className="select-control" value={pos} onChange={(e) => setPos(e.target.value)}>
+          {positions.map((p) => <option key={p} value={p}>{p}</option>)}
+        </select>
         <button className="refresh-btn" onClick={fetchAdp} disabled={loading}>
-          {loading ? 'Refreshing…' : 'Refresh'}
+          {loading ? 'Loading…' : 'Refresh'}
         </button>
       </div>
 
       {error && <div className="error-box">{error}</div>}
 
-      {!error && loading && !data && (
-        <div className="text-sm kickoff-text mb-6">Fetching ADP data…</div>
-      )}
-
-      {!error && data && players.length === 0 && (
-        <div className="text-sm kickoff-text mb-6">No ADP data returned for this format/team size.</div>
-      )}
-
-      {!error && players.length > 0 && (
+      {!error && (
         <div className="board-card rounded-lg overflow-hidden mb-5">
-          <div className="px-4 py-3 board-card-header">
+          <div className="px-4 py-3 board-card-header flex items-center justify-between">
             <span className="font-display text-base tracking-wide uppercase">
-              {FANTASY_FORMATS.find((f) => f.id === format)?.label} ADP &mdash; {teamSize}-Team
+              {season} Fantasy Football ADP {pos !== 'ALL' ? `— ${pos}` : ''}
             </span>
+            <span className="text-xs kickoff-text">{data.length} players</span>
           </div>
           <div className="overflow-x-auto">
-            <div style={{ minWidth: '480px' }}>
-              <div className="grid" style={{ gridTemplateColumns: cols }}>
-                <div className="px-3 py-2 text-xs label-text">#</div>
-                <div className="px-3 py-2 text-xs label-text">Player</div>
-                <div className="px-1 py-2 text-center text-xs label-text">Pos</div>
-                <div className="px-1 py-2 text-center text-xs label-text">Team</div>
-                <div className="px-1 py-2 text-center text-xs label-text">ADP</div>
-                <div className="px-1 py-2 text-center text-xs label-text">Range</div>
-              </div>
-              {players.map((p, i) => (
-                <div
-                  key={p.player_id ?? i}
-                  className={`grid items-center border-row ${i % 2 === 0 ? 'stripe-a' : 'stripe-b'}`}
-                  style={{ gridTemplateColumns: cols }}
-                >
-                  <div className="px-3 py-2 text-sm font-mono side-label">{i + 1}</div>
-                  <div className="px-3 py-2 text-sm side-label">{p.name ?? '—'}</div>
-                  <div className="px-1 py-2 text-center text-sm font-mono kickoff-text">{p.position ?? '—'}</div>
-                  <div className="px-1 py-2 text-center text-sm font-mono kickoff-text">{p.team ?? '—'}</div>
-                  <div className="px-1 py-2 text-center text-sm font-mono side-label">
-                    {p.adp_formatted ?? p.adp ?? '—'}
-                  </div>
-                  <div className="px-1 py-2 text-center text-xs font-mono kickoff-text">
-                    {p.high !== undefined && p.low !== undefined ? `${p.high}–${p.low}` : '—'}
-                  </div>
-                </div>
-              ))}
-            </div>
+            <table className="opp-table">
+              <thead>
+                <tr>
+                  {allCols.map((c) => (
+                    <th key={c.key} onClick={() => handleSort(c.key)} className="opp-th">
+                      {c.label}{sortBy === c.key ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr><td colSpan={allCols.length} className="opp-td text-center kickoff-text">Loading…</td></tr>
+                ) : data.map((row, i) => (
+                  <tr key={row.id} className={i % 2 === 0 ? 'stripe-a' : 'stripe-b'}>
+                    {allCols.map((c) => (
+                      <td key={c.key} className="opp-td">{row[c.key] ?? '—'}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        </div>
-      )}
-
-      {data && (
-        <div className="text-center mt-3">
-          <button className="refresh-btn" onClick={() => setShowDebug((v) => !v)}>
-            {showDebug ? 'Hide' : 'Show'} raw API response (debug)
-          </button>
-          {showDebug && (
-            <div className="board-card rounded-lg p-3 mt-2 text-left text-xs font-mono kickoff-text" style={{ maxHeight: '300px', overflow: 'auto' }}>
-              <pre style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{JSON.stringify(data, null, 2).slice(0, 4000)}</pre>
-            </div>
-          )}
         </div>
       )}
     </div>
@@ -1783,7 +1776,7 @@ export default function App() {
         }
       `}</style>
 
-      <div className={`mx-auto ${['fantasy_points','fantasy_ppg','opportunities','red_zone'].includes(activeId) ? 'max-w-7xl' : 'max-w-3xl'}`}>
+      <div className={`mx-auto ${['fantasy_points','fantasy_ppg','opportunities','red_zone','adp'].includes(activeId) ? 'max-w-7xl' : 'max-w-3xl'}`}>
         {showAuth && (
           <AuthModal
             onClose={() => setShowAuth(false)}
