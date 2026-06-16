@@ -1552,8 +1552,9 @@ function DraftBoard({ league, onBack }) {
   const fetchPlayers = useCallback(async () => {
     setLoading(true);
     try {
+      const table = league.superflex ? 'adp_2qb' : 'adp';
       const { data, error } = await supabase
-        .from('adp')
+        .from(table)
         .select('*')
         .eq('season', 2026)
         .order('overall', { ascending: true });
@@ -1564,7 +1565,7 @@ function DraftBoard({ league, onBack }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [league.superflex]);
 
   useEffect(() => { fetchPlayers(); }, [fetchPlayers]);
 
@@ -1623,7 +1624,7 @@ function DraftBoard({ league, onBack }) {
         <div style={{ flex: '2 1 480px', minWidth: '320px' }}>
           {league.superflex && (
             <div className="text-xs kickoff-text mb-3" style={{ background: 'var(--amber-soft)', padding: '0.5rem 0.75rem', borderRadius: '8px' }}>
-              This league is Superflex — QB values typically rise compared to standard ADP. The rankings below use standard consensus ADP for now; QB-heavy strategy adjustments are on you for this version.
+              This league is Superflex — rankings below use 2-QB/Superflex-specific consensus ADP, where QB value rises compared to standard formats.
             </div>
           )}
           <div className="flex gap-2 flex-wrap mb-3">
@@ -1731,6 +1732,8 @@ function DraftAssistantTab({ userId }) {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [activeLeague, setActiveLeague] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchLeagues = useCallback(async () => {
     setLoading(true);
@@ -1750,6 +1753,20 @@ function DraftAssistantTab({ userId }) {
   }, [userId]);
 
   useEffect(() => { fetchLeagues(); }, [fetchLeagues]);
+
+  const handleDelete = async (leagueId) => {
+    setDeleting(true);
+    try {
+      const { error } = await supabase.from('leagues').delete().eq('id', leagueId);
+      if (error) throw error;
+      setConfirmDelete(null);
+      fetchLeagues();
+    } catch (e) {
+      alert('Could not delete league: ' + e.message);
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   if (activeLeague) {
     return <DraftBoard league={activeLeague} onBack={() => setActiveLeague(null)} />;
@@ -1780,17 +1797,54 @@ function DraftAssistantTab({ userId }) {
       ) : (
         <div className="flex gap-3 flex-wrap">
           {leagues.map(l => (
-            <button
+            <div
               key={l.id}
-              onClick={() => setActiveLeague(l)}
               className="board-card rounded-lg p-4"
-              style={{ textAlign: 'left', cursor: 'pointer', minWidth: '220px' }}
+              style={{ minWidth: '220px', position: 'relative' }}
             >
-              <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>{l.league_name}</div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                {l.num_teams}-team {l.draft_type} · {l.scoring_format.toUpperCase()}{l.superflex ? ' · Superflex' : ''}
-              </div>
-            </button>
+              {confirmDelete === l.id ? (
+                <div>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.6rem' }}>
+                    Delete "{l.league_name}"? This can't be undone.
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleDelete(l.id)}
+                      disabled={deleting}
+                      style={{ fontSize: '0.72rem', fontWeight: 700, padding: '0.3rem 0.75rem', borderRadius: '6px', border: 'none', background: '#DC2626', color: '#fff', cursor: 'pointer' }}
+                    >
+                      {deleting ? 'Deleting…' : 'Delete'}
+                    </button>
+                    <button
+                      onClick={() => setConfirmDelete(null)}
+                      className="refresh-btn"
+                      style={{ fontSize: '0.72rem' }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <button
+                    onClick={() => setConfirmDelete(l.id)}
+                    title="Delete league"
+                    style={{ position: 'absolute', top: '8px', right: '8px', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.85rem', padding: '2px 6px', borderRadius: '4px' }}
+                  >
+                    ✕
+                  </button>
+                  <button
+                    onClick={() => setActiveLeague(l)}
+                    style={{ textAlign: 'left', cursor: 'pointer', background: 'none', border: 'none', width: '100%', padding: 0 }}
+                  >
+                    <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>{l.league_name}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      {l.num_teams}-team {l.draft_type} · {l.scoring_format.toUpperCase()}{l.superflex ? ' · Superflex' : ''}
+                    </div>
+                  </button>
+                </>
+              )}
+            </div>
           ))}
         </div>
       )}
