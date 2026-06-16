@@ -1,11 +1,11 @@
 {
-  "name": "Fantasy Bets",
-  "short_name": "Fantasy Bets",
-  "description": "Live sports odds, player props, futures, and fantasy ADP",
+  "name": "Game Day Blueprint",
+  "short_name": "GDB",
+  "description": "Fantasy football data, player opportunities, ADP, and live betting odds",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#F1F3F5",
-  "theme_color": "#16301F",
+  "background_color": "#F7F8FA",
+  "theme_color": "#6C47FF",
   "icons": [
     {
       "src": "/icon-192.png",

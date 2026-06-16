@@ -1503,277 +1503,224 @@ export default function App() {
   return (
     <div className="board-root min-h-screen px-4 py-6 sm:px-8">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 
         .board-root {
-          --board-bg: #F1F3F5;
+          --board-bg: #F7F8FA;
           --card-bg: #FFFFFF;
           --card-header-bg: #FAFBFC;
-          --card-border: #E2E5E9;
-          --row-border: #ECEEF1;
-          --row-alt: #F6F7F9;
-          --text-primary: #1F2937;
-          --text-muted: #6B7280;
-          --amber: #16A34A;
-          --amber-soft: rgba(22, 163, 74, 0.12);
-          --amber-text: #15803D;
+          --card-border: #E8EAF0;
+          --row-border: #F0F1F5;
+          --row-alt: #F5F6FA;
+          --text-primary: #1A1F2E;
+          --text-muted: #8A90A0;
+          --amber: #6C47FF;
+          --amber-soft: rgba(108, 71, 255, 0.08);
+          --amber-text: #6C47FF;
           background: var(--board-bg);
           color: var(--text-primary);
           font-family: 'Inter', sans-serif;
         }
-        .font-display { font-family: 'Oswald', sans-serif; }
+        .font-display { font-family: 'Inter', sans-serif; font-weight: 800; }
         .font-mono { font-family: 'IBM Plex Mono', monospace; }
 
         .board-card {
           background: var(--card-bg);
           border: 1px solid var(--card-border);
-          box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+          box-shadow: 0 1px 4px rgba(26, 31, 46, 0.06);
         }
         .board-card-header { background: var(--card-header-bg); border-bottom: 1px solid var(--card-border); }
         .team-stripe { display: inline-block; width: 4px; height: 16px; border-radius: 1px; flex-shrink: 0; }
         .kickoff-text { color: var(--text-muted); }
         .label-text { color: var(--text-muted); }
         .book-header { letter-spacing: 0.05em; font-weight: 600; }
-        .row-group-label { color: var(--text-muted); background: rgba(15, 23, 42, 0.03); letter-spacing: 0.15em; }
+        .row-group-label { color: var(--text-muted); background: rgba(26, 31, 46, 0.02); letter-spacing: 0.12em; font-size: 0.7rem; }
         .border-row { border-top: 1px solid var(--row-border); }
-        .side-label { color: var(--text-primary); }
+        .side-label { color: var(--text-primary); font-weight: 500; }
         .line-muted { color: var(--text-muted); }
         .line-best { color: var(--amber-text); }
-        .no-lines { color: var(--text-muted); opacity: 0.55; }
+        .no-lines { color: var(--text-muted); opacity: 0.5; font-size: 0.75rem; }
         .stripe-a { background: var(--card-bg); }
         .stripe-b { background: var(--row-alt); }
 
-        .best-line-header { background: var(--amber); color: #fff; margin-right: 6px; }
-        .best-cell { background: var(--amber); color: #fff; margin-right: 6px; }
-        .best-cell-line { color: rgba(255, 255, 255, 0.8); }
+        .best-line-header { background: var(--amber); color: #fff; margin-right: 6px; border-radius: 4px; }
+        .best-cell { background: var(--amber); color: #fff; margin-right: 6px; border-radius: 4px; }
+        .best-cell-line { color: rgba(255,255,255,0.8); }
         .odds-best {
           background: var(--amber-soft);
           color: var(--amber-text);
           box-shadow: inset 3px 0 0 var(--amber);
+          font-weight: 700;
         }
-        .best-book-badge { color: var(--amber-text); }
-        .accordion-header {
-          background: none;
-          border: none;
-          cursor: pointer;
-          text-align: left;
-          width: 100%;
-        }
-        .accordion-header:hover { filter: brightness(0.97); }
-        .accordion-chevron {
-          font-size: 0.6rem;
-          color: var(--text-muted);
-          margin-top: 4px;
-        }
-        .prop-label { color: var(--text-primary); background: rgba(15, 23, 42, 0.02); }
+        .best-book-badge { color: var(--amber-text); font-weight: 600; }
+
+        .accordion-header { background: none; border: none; cursor: pointer; text-align: left; width: 100%; }
+        .accordion-header:hover { background: var(--row-alt); }
+        .accordion-chevron { font-size: 0.6rem; color: var(--text-muted); margin-top: 4px; }
+
+        .prop-label { color: var(--text-primary); background: var(--row-alt); }
         .props-toggle-btn {
-          width: 100%;
-          text-align: left;
-          font-family: 'IBM Plex Mono', monospace;
-          font-size: 0.75rem;
-          padding: 0.5rem 0.75rem;
-          background: transparent;
-          border: none;
-          color: var(--text-muted);
-          cursor: pointer;
+          width: 100%; text-align: left;
+          font-family: 'IBM Plex Mono', monospace; font-size: 0.75rem;
+          padding: 0.5rem 0.75rem; background: transparent; border: none;
+          color: var(--text-muted); cursor: pointer;
         }
         .props-toggle-btn:hover { color: var(--amber-text); }
 
-        .leaderboard-track { height: 10px; background: var(--row-border); overflow: hidden; }
-        .leaderboard-bar { height: 100%; background: var(--text-muted); opacity: 0.4; }
+        .leaderboard-track { height: 8px; background: var(--row-border); overflow: hidden; border-radius: 4px; }
+        .leaderboard-bar { height: 100%; background: var(--text-muted); opacity: 0.3; border-radius: 4px; }
         .leaderboard-bar-top { background: var(--amber); opacity: 1; }
 
         .live-dot {
           display: inline-block; width: 7px; height: 7px; border-radius: 50%;
           background: var(--amber);
-          box-shadow: 0 0 6px rgba(22, 163, 74, 0.5);
           animation: pulse 1.6s ease-in-out infinite;
         }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 
         .tab-btn {
-          font-family: 'Oswald', sans-serif;
-          letter-spacing: 0.1em;
-          text-transform: uppercase;
-          font-size: 0.8rem;
-          padding: 0.5rem 1rem;
-          border-radius: 6px;
-          border: 1px solid var(--card-border);
+          font-family: 'Inter', sans-serif;
+          font-weight: 600;
+          font-size: 0.82rem;
+          padding: 0.5rem 1.1rem;
+          border-radius: 8px;
+          border: 1.5px solid var(--card-border);
           background: var(--card-bg);
           color: var(--text-muted);
           cursor: pointer;
+          letter-spacing: 0.01em;
         }
         .tab-btn.active {
           color: var(--amber-text);
-          border-color: rgba(22, 163, 74, 0.4);
+          border-color: var(--amber);
           background: var(--amber-soft);
         }
         .refresh-btn {
-          font-family: 'IBM Plex Mono', monospace;
-          font-size: 0.75rem;
-          padding: 0.4rem 0.8rem;
-          border-radius: 6px;
-          border: 1px solid var(--card-border);
+          font-family: 'Inter', sans-serif;
+          font-size: 0.78rem;
+          font-weight: 500;
+          padding: 0.4rem 0.9rem;
+          border-radius: 20px;
+          border: 1.5px solid var(--card-border);
           background: var(--card-bg);
           color: var(--text-muted);
           cursor: pointer;
         }
-        .refresh-btn:hover { color: var(--amber-text); border-color: rgba(22, 163, 74, 0.4); }
+        .refresh-btn:hover { color: var(--amber-text); border-color: var(--amber); }
         .select-control {
-          font-family: 'IBM Plex Mono', monospace;
-          font-size: 0.75rem;
-          padding: 0.4rem 0.6rem;
-          border-radius: 6px;
-          border: 1px solid var(--card-border);
+          font-family: 'Inter', sans-serif;
+          font-size: 0.82rem;
+          font-weight: 500;
+          padding: 0.4rem 0.7rem;
+          border-radius: 8px;
+          border: 1.5px solid var(--card-border);
           background: var(--card-bg);
           color: var(--text-primary);
           cursor: pointer;
         }
         .error-box {
-          border: 1px solid rgba(220, 38, 38, 0.3);
-          background: rgba(220, 38, 38, 0.06);
+          border: 1px solid rgba(220, 38, 38, 0.25);
+          background: rgba(220, 38, 38, 0.05);
           color: #B91C1C;
           padding: 0.75rem 1rem;
-          border-radius: 8px;
+          border-radius: 10px;
           font-size: 0.85rem;
           margin-bottom: 1.5rem;
         }
         .success-box {
-          border: 1px solid rgba(22, 163, 74, 0.3);
-          background: rgba(22, 163, 74, 0.06);
-          color: #15803D;
+          border: 1px solid rgba(108, 71, 255, 0.25);
+          background: rgba(108, 71, 255, 0.05);
+          color: #6C47FF;
           padding: 0.75rem 1rem;
-          border-radius: 8px;
+          border-radius: 10px;
           font-size: 0.85rem;
         }
         .auth-overlay {
           position: fixed; inset: 0;
-          background: rgba(0,0,0,0.45);
+          background: rgba(26,31,46,0.4);
           display: flex; align-items: center; justify-content: center;
           z-index: 100;
         }
         .auth-modal {
           background: var(--card-bg);
           border: 1px solid var(--card-border);
-          border-radius: 12px;
-          padding: 1.5rem;
+          border-radius: 16px;
+          padding: 1.75rem;
           width: 100%;
           max-width: 360px;
-          box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+          box-shadow: 0 12px 40px rgba(26,31,46,0.15);
         }
-        .auth-close {
-          background: none; border: none;
-          color: var(--text-muted); cursor: pointer;
-          font-size: 1rem; padding: 0.25rem;
-        }
+        .auth-close { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1rem; padding: 0.25rem; }
         .auth-close:hover { color: var(--text-primary); }
         .auth-label {
-          display: block;
-          font-size: 0.75rem;
-          color: var(--text-muted);
-          margin-bottom: 0.35rem;
-          font-family: 'Inter', sans-serif;
+          display: block; font-size: 0.75rem; font-weight: 600;
+          color: var(--text-muted); margin-bottom: 0.35rem;
+          font-family: 'Inter', sans-serif; letter-spacing: 0.02em;
         }
         .auth-input {
-          width: 100%;
-          padding: 0.5rem 0.75rem;
-          border: 1px solid var(--card-border);
-          border-radius: 6px;
-          background: var(--board-bg);
-          color: var(--text-primary);
-          font-size: 0.875rem;
-          font-family: 'Inter', sans-serif;
-          box-sizing: border-box;
+          width: 100%; padding: 0.55rem 0.85rem;
+          border: 1.5px solid var(--card-border);
+          border-radius: 8px; background: var(--board-bg);
+          color: var(--text-primary); font-size: 0.875rem;
+          font-family: 'Inter', sans-serif; box-sizing: border-box;
         }
-        .auth-input:focus {
-          outline: none;
-          border-color: rgba(22, 163, 74, 0.5);
-        }
+        .auth-input:focus { outline: none; border-color: var(--amber); }
         .auth-submit {
-          width: 100%;
-          padding: 0.6rem 1rem;
-          background: var(--amber);
-          color: #fff;
-          border: none;
-          border-radius: 6px;
-          font-family: 'Oswald', sans-serif;
-          font-size: 0.9rem;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
+          width: 100%; padding: 0.65rem 1rem;
+          background: var(--amber); color: #fff; border: none;
+          border-radius: 8px; font-family: 'Inter', sans-serif;
+          font-size: 0.9rem; font-weight: 700; letter-spacing: 0.03em;
           cursor: pointer;
         }
-        .auth-submit:hover { opacity: 0.9; }
-        .auth-submit:disabled { opacity: 0.6; cursor: not-allowed; }
-        .auth-switch {
-          background: none; border: none;
-          color: var(--amber-text);
-          cursor: pointer; font-size: 0.75rem;
-          text-decoration: underline; padding: 0;
-        }
+        .auth-submit:hover { opacity: 0.88; }
+        .auth-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+        .auth-switch { background: none; border: none; color: var(--amber-text); cursor: pointer; font-size: 0.75rem; font-weight: 600; text-decoration: underline; padding: 0; }
         .auth-header-btn {
-          font-family: 'IBM Plex Mono', monospace;
-          font-size: 0.75rem;
-          padding: 0.35rem 0.75rem;
-          border-radius: 6px;
-          border: 1px solid var(--card-border);
-          background: var(--card-bg);
-          color: var(--text-muted);
-          cursor: pointer;
-          white-space: nowrap;
+          font-family: 'Inter', sans-serif; font-size: 0.78rem; font-weight: 600;
+          padding: 0.35rem 0.85rem; border-radius: 20px;
+          border: 1.5px solid var(--card-border); background: var(--card-bg);
+          color: var(--text-muted); cursor: pointer; white-space: nowrap;
         }
-        .auth-header-btn:hover { color: var(--amber-text); border-color: rgba(22, 163, 74, 0.4); }
+        .auth-header-btn:hover { color: var(--amber-text); border-color: var(--amber); }
 
         .nav-group { position: relative; }
         .nav-dropdown {
-          position: absolute;
-          top: calc(100% + 4px);
-          left: 0;
-          background: var(--card-bg);
-          border: 1px solid var(--card-border);
-          border-radius: 8px;
-          box-shadow: 0 4px 16px rgba(0,0,0,0.1);
-          z-index: 50;
-          min-width: 180px;
-          overflow: hidden;
+          position: absolute; top: calc(100% + 6px); left: 0;
+          background: var(--card-bg); border: 1.5px solid var(--card-border);
+          border-radius: 12px; box-shadow: 0 8px 24px rgba(26,31,46,0.1);
+          z-index: 50; min-width: 200px; overflow: hidden;
         }
         .nav-dropdown-item {
-          display: block;
-          width: 100%;
-          text-align: left;
-          padding: 0.6rem 1rem;
-          font-family: 'Inter', sans-serif;
-          font-size: 0.85rem;
-          background: none;
-          border: none;
-          color: var(--text-primary);
-          cursor: pointer;
+          display: block; width: 100%; text-align: left;
+          padding: 0.65rem 1rem; font-family: 'Inter', sans-serif;
+          font-size: 0.85rem; font-weight: 500; background: none; border: none;
+          color: var(--text-primary); cursor: pointer;
           border-bottom: 1px solid var(--row-border);
         }
         .nav-dropdown-item:last-child { border-bottom: none; }
         .nav-dropdown-item:hover { background: var(--amber-soft); color: var(--amber-text); }
-        .nav-dropdown-item.active { color: var(--amber-text); font-weight: 600; }
+        .nav-dropdown-item.active { color: var(--amber-text); font-weight: 700; background: var(--amber-soft); }
 
         .opp-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
         .opp-th {
-          padding: 0.5rem 0.75rem;
-          text-align: left;
-          font-family: 'IBM Plex Mono', monospace;
-          font-size: 0.7rem;
-          color: var(--text-muted);
-          background: var(--card-header-bg);
-          border-bottom: 1px solid var(--card-border);
-          cursor: pointer;
-          white-space: nowrap;
-          user-select: none;
+          padding: 0.55rem 0.75rem; text-align: left;
+          font-family: 'Inter', sans-serif; font-size: 0.7rem; font-weight: 700;
+          letter-spacing: 0.04em; text-transform: uppercase;
+          color: var(--text-muted); background: var(--card-header-bg);
+          border-bottom: 1.5px solid var(--card-border);
+          cursor: pointer; white-space: nowrap; user-select: none;
         }
         .opp-th:hover { color: var(--amber-text); }
         .opp-td {
-          padding: 0.45rem 0.75rem;
+          padding: 0.5rem 0.75rem;
           font-family: 'IBM Plex Mono', monospace;
-          color: var(--text-primary);
-          white-space: nowrap;
+          color: var(--text-primary); white-space: nowrap;
           border-bottom: 1px solid var(--row-border);
         }
+
+        .gdb-logo { font-size: 1.4rem; font-weight: 800; color: var(--text-primary); letter-spacing: -0.5px; }
+        .gdb-logo-accent { color: var(--amber); }
+        .gdb-nav { background: var(--card-bg); border-bottom: 1.5px solid var(--card-border); padding: 0.65rem 1.5rem; display: flex; align-items: center; justify-content: space-between; margin: -1.5rem -1.5rem 1.5rem; }
       `}</style>
 
       <div className={`mx-auto ${['fantasy_points','fantasy_ppg','opportunities','red_zone','adp'].includes(activeId) ? 'max-w-7xl' : 'max-w-3xl'}`}>
@@ -1784,8 +1731,10 @@ export default function App() {
           />
         )}
 
-        <div className="flex items-center justify-between mb-1 flex-wrap gap-2">
-          <h1 className="font-display text-2xl tracking-widest uppercase">Fantasy Bets</h1>
+        <div className="flex items-center justify-between mb-3 flex-wrap gap-2" style={{ borderBottom: '1.5px solid var(--card-border)', paddingBottom: '0.75rem', marginBottom: '1rem' }}>
+          <div className="gdb-logo">
+            Game Day <span className="gdb-logo-accent">Blueprint</span>
+          </div>
           <div className="flex items-center gap-3">
             {['nfl','nba','mlb'].includes(activeId) && (
               <div className="flex items-center gap-2 font-mono text-xs kickoff-text">
@@ -1795,7 +1744,7 @@ export default function App() {
             )}
             {session ? (
               <div className="flex items-center gap-2">
-                <span className="text-xs kickoff-text font-mono">👤 {username}</span>
+                <span className="text-xs kickoff-text" style={{ fontWeight: 600 }}>👤 {username}</span>
                 <button className="auth-header-btn" onClick={handleSignOut}>Sign out</button>
               </div>
             ) : (
