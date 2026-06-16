@@ -932,6 +932,123 @@ function FantasyAdpTab() {
   );
 }
 
+// Transforms ESPN scoreboard event into a compact ticker item
+function parseESPNGame(event) {
+  const comp = event.competitions?.[0];
+  if (!comp) return null;
+  const home = comp.competitors?.find(c => c.homeAway === 'home');
+  const away = comp.competitors?.find(c => c.homeAway === 'away');
+  const status = event.status?.type;
+  const state = status?.state; // pre, in, post
+  const detail = status?.shortDetail || '';
+
+  return {
+    id: event.id,
+    away: { abbr: away?.team?.abbreviation || '?', score: away?.score ?? '' },
+    home: { abbr: home?.team?.abbreviation || '?', score: home?.score ?? '' },
+    state,
+    detail,
+  };
+}
+
+function ScoreTicker() {
+  const [activeSport, setActiveSport] = useState('mlb');
+  const [games, setGames] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const SPORTS = [
+    { id: 'nfl', label: 'NFL' },
+    { id: 'ncaaf', label: 'NCAAF' },
+    { id: 'nba', label: 'NBA' },
+    { id: 'wnba', label: 'WNBA' },
+    { id: 'mlb', label: 'MLB' },
+    { id: 'nhl', label: 'NHL' },
+  ];
+
+  const fetchScores = useCallback(async (sport) => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/scores?sport=${sport}`);
+      const json = await res.json();
+      const parsed = (json.events || []).map(parseESPNGame).filter(Boolean);
+      setGames(parsed);
+    } catch (e) {
+      setGames([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchScores(activeSport); }, [activeSport, fetchScores]);
+
+  // Auto-refresh every 60 seconds
+  useEffect(() => {
+    const t = setInterval(() => fetchScores(activeSport), 60000);
+    return () => clearInterval(t);
+  }, [activeSport, fetchScores]);
+
+  return (
+    <div style={{ background: 'var(--text-primary)', color: '#fff', overflow: 'hidden', display: 'flex', alignItems: 'stretch', height: '36px', margin: '-1.5rem -1.5rem 1.25rem', userSelect: 'none' }}>
+      {/* Sport toggle buttons */}
+      <div style={{ display: 'flex', flexShrink: 0, borderRight: '1px solid rgba(255,255,255,0.12)' }}>
+        {SPORTS.map(s => (
+          <button
+            key={s.id}
+            onClick={() => setActiveSport(s.id)}
+            style={{
+              padding: '0 12px', height: '100%', border: 'none', cursor: 'pointer',
+              fontSize: '11px', fontWeight: 700, letterSpacing: '0.05em',
+              background: activeSport === s.id ? 'var(--amber)' : 'transparent',
+              color: activeSport === s.id ? '#fff' : 'rgba(255,255,255,0.5)',
+              borderRight: '1px solid rgba(255,255,255,0.08)',
+            }}
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Scrolling scores */}
+      <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+        {loading ? (
+          <div style={{ display: 'flex', alignItems: 'center', height: '100%', paddingLeft: '12px', fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>
+            Loading scores…
+          </div>
+        ) : games.length === 0 ? (
+          <div style={{ display: 'flex', alignItems: 'center', height: '100%', paddingLeft: '12px', fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>
+            No games today
+          </div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', height: '100%', animation: games.length > 4 ? 'ticker 30s linear infinite' : 'none', whiteSpace: 'nowrap' }}>
+            {[...games, ...(games.length > 4 ? games : [])].map((g, i) => (
+              <div key={`${g.id}-${i}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '0 16px', borderRight: '1px solid rgba(255,255,255,0.08)', height: '100%', fontSize: '12px' }}>
+                <span style={{ fontWeight: 700, color: 'rgba(255,255,255,0.9)' }}>{g.away.abbr}</span>
+                {g.state !== 'pre' && <span style={{ fontWeight: 800, color: '#fff', minWidth: '14px', textAlign: 'right' }}>{g.away.score}</span>}
+                <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '10px' }}>@</span>
+                <span style={{ fontWeight: 700, color: 'rgba(255,255,255,0.9)' }}>{g.home.abbr}</span>
+                {g.state !== 'pre' && <span style={{ fontWeight: 800, color: '#fff', minWidth: '14px' }}>{g.home.score}</span>}
+                <span style={{
+                  fontSize: '10px', fontWeight: 600,
+                  color: g.state === 'in' ? '#FFD27A' : 'rgba(255,255,255,0.4)',
+                  marginLeft: '2px',
+                }}>
+                  {g.detail}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+        <style>{`
+          @keyframes ticker {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+          }
+        `}</style>
+      </div>
+    </div>
+  );
+}
+
 function LoginPrompt({ onSignIn }) {
   return (
     <div className="board-card rounded-lg p-6 text-center mb-5">
@@ -1731,6 +1848,8 @@ export default function App() {
             onAuth={() => setShowAuth(false)}
           />
         )}
+
+        <ScoreTicker />
 
         <div className="flex items-center justify-between mb-3 flex-wrap gap-2" style={{ borderBottom: '1.5px solid var(--card-border)', paddingBottom: '0.75rem', marginBottom: '1rem' }}>
           <div className="gdb-logo">
