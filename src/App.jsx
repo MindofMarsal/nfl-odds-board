@@ -1723,8 +1723,8 @@ function RedZoneTab() {
     ],
     rz_passing: [
       { key: 'player', label: 'Player' }, { key: 'team', label: 'Team' },
-      { key: 'i20_att', label: 'i20 Att' }, { key: 'i20_cmp', label: 'i20 Cmp' }, { key: 'i20_cmppct', label: 'i20 Cmp%', pct: true }, { key: 'i20_yds', label: 'i20 Yds' }, { key: 'i20_td', label: 'i20 TD' }, { key: 'i20_int', label: 'i20 Int' },
-      { key: 'i10_att', label: 'i10 Att' }, { key: 'i10_cmppct', label: 'i10 Cmp%', pct: true }, { key: 'i10_yds', label: 'i10 Yds' }, { key: 'i10_td', label: 'i10 TD' }, { key: 'i10_int', label: 'i10 Int' },
+      { key: 'i20_att', label: 'i20 Att' }, { key: 'i20_cmp', label: 'i20 Cmp' }, { key: 'i20_cmppct', label: 'i20 Cmp%', pctRaw: true }, { key: 'i20_yds', label: 'i20 Yds' }, { key: 'i20_td', label: 'i20 TD' }, { key: 'i20_int', label: 'i20 Int' },
+      { key: 'i10_att', label: 'i10 Att' }, { key: 'i10_cmppct', label: 'i10 Cmp%', pctRaw: true }, { key: 'i10_yds', label: 'i10 Yds' }, { key: 'i10_td', label: 'i10 TD' }, { key: 'i10_int', label: 'i10 Int' },
     ],
     rz_scoring_att_per_game: [
       { key: 'team', label: 'Team' }, { key: 'rank', label: 'Rank' },
@@ -1809,7 +1809,7 @@ function RedZoneTab() {
                 ) : data.map((row, i) => (
                   <tr key={row.id} className={i % 2 === 0 ? 'stripe-a' : 'stripe-b'}>
                     {cols.map((c) => (
-                      <td key={c.key} className="opp-td">{c.pct && row[c.key] != null ? `${(row[c.key] * 100).toFixed(1)}%` : (row[c.key] ?? '—')}</td>
+                      <td key={c.key} className="opp-td">{c.pctRaw && row[c.key] != null ? `${row[c.key]}%` : c.pct && row[c.key] != null ? `${(row[c.key] * 100).toFixed(1)}%` : (row[c.key] ?? '—')}</td>
                     ))}
                   </tr>
                 ))}
