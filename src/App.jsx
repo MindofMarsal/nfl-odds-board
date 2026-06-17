@@ -1358,7 +1358,7 @@ function GameDetailModal({ sport, eventId, onClose }) {
   );
 }
 
-function ScoreboardTab() {
+function ScoreboardTab({ oddsCache, fetchOdds, sportsConfig }) {
   const [activeSport, setActiveSport] = useState('mlb');
   const [openDropdown, setOpenDropdown] = useState(false);
   const [games, setGames] = useState([]);
@@ -1373,6 +1373,9 @@ function ScoreboardTab() {
     { id: 'mlb', label: 'MLB' },
     { id: 'nhl', label: 'NHL' },
   ];
+
+  // Sports where we also have spread data available via The Odds API.
+  const ODDS_SPORTS = ['nfl', 'nba', 'mlb'];
 
   const fetchScores = useCallback(async (sport) => {
     setLoading(true);
@@ -1394,6 +1397,46 @@ function ScoreboardTab() {
     const t = setInterval(() => fetchScores(activeSport), 60000);
     return () => clearInterval(t);
   }, [activeSport, fetchScores]);
+
+  // Pull in spread data for sports we have odds for, reusing the shared cache
+  // so we don't burn extra Odds API credits if the Betting tab already fetched it.
+  useEffect(() => {
+    if (!ODDS_SPORTS.includes(activeSport)) return;
+    if (oddsCache[activeSport]) return;
+    const sportObj = sportsConfig.find(s => s.id === activeSport);
+    if (sportObj) fetchOdds(sportObj);
+  }, [activeSport, oddsCache, fetchOdds, sportsConfig]);
+
+  // Build a quick lookup of spreads by matching team names from the odds response.
+  const spreadByTeams = {};
+  if (ODDS_SPORTS.includes(activeSport) && oddsCache[activeSport]?.data) {
+    for (const event of oddsCache[activeSport].data) {
+      const bookmaker = event.bookmakers?.[0];
+      const spreadsMarket = bookmaker?.markets?.find(m => m.key === 'spreads');
+      if (!spreadsMarket) continue;
+      const homeOutcome = spreadsMarket.outcomes?.find(o => o.name === event.home_team);
+      const awayOutcome = spreadsMarket.outcomes?.find(o => o.name === event.away_team);
+      spreadByTeams[`${event.away_team}@${event.home_team}`] = {
+        home: homeOutcome?.point,
+        away: awayOutcome?.point,
+      };
+    }
+  }
+
+  // Loosely match an ESPN game (by team abbreviation/short name) to an odds-API entry
+  // by checking if either team's full name contains the ESPN abbreviation.
+  const findSpread = (game) => {
+    for (const key of Object.keys(spreadByTeams)) {
+      const [away, home] = key.split('@');
+      if (
+        (away?.includes(game.away.abbr) || game.away.abbr.includes(away?.split(' ').pop() || '')) &&
+        (home?.includes(game.home.abbr) || game.home.abbr.includes(home?.split(' ').pop() || ''))
+      ) {
+        return spreadByTeams[key];
+      }
+    }
+    return null;
+  };
 
   const activeLabel = SPORTS.find(s => s.id === activeSport)?.label;
 
@@ -1440,28 +1483,41 @@ function ScoreboardTab() {
           ) : games.length === 0 ? (
             <div className="text-xs kickoff-text" style={{ display: 'flex', alignItems: 'center', padding: '0 1rem' }}>No games today.</div>
           ) : (
-            games.map(g => (
-              <button
-                key={g.id}
-                onClick={() => setSelectedGame(g.id)}
-                style={{
-                  cursor: 'pointer', border: 'none', borderRight: '1px solid var(--row-border)',
-                  background: 'transparent', padding: '0 0.9rem', display: 'inline-flex',
-                  flexDirection: 'column', justifyContent: 'center', minWidth: '120px', flexShrink: 0,
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  <span style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--text-primary)' }}>{g.away.abbr}</span>
-                  {g.state !== 'pre' && <span style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--text-primary)' }}>{g.away.score}</span>}
-                  <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>@</span>
-                  <span style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--text-primary)' }}>{g.home.abbr}</span>
-                  {g.state !== 'pre' && <span style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--text-primary)' }}>{g.home.score}</span>}
-                </div>
-                <div style={{ fontSize: '0.6rem', fontWeight: 600, color: g.state === 'in' ? 'var(--amber-text)' : 'var(--text-muted)', marginTop: '1px' }}>
-                  {g.detail}
-                </div>
-              </button>
-            ))
+            games.map(g => {
+              const spread = ODDS_SPORTS.includes(activeSport) ? findSpread(g) : null;
+              return (
+                <button
+                  key={g.id}
+                  onClick={() => setSelectedGame(g.id)}
+                  style={{
+                    cursor: 'pointer', border: 'none', borderRight: '1px solid var(--row-border)',
+                    background: 'transparent', padding: '0 0.9rem', display: 'inline-flex',
+                    flexDirection: 'column', justifyContent: 'center', minWidth: '120px', flexShrink: 0,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <span style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--text-primary)' }}>{g.away.abbr}</span>
+                    {g.state !== 'pre' && <span style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--text-primary)' }}>{g.away.score}</span>}
+                    {spread && g.state === 'pre' && (
+                      <span style={{ fontSize: '0.62rem', color: 'var(--amber-text)', fontWeight: 700 }}>
+                        {spread.away > 0 ? `+${spread.away}` : spread.away}
+                      </span>
+                    )}
+                    <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>@</span>
+                    <span style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--text-primary)' }}>{g.home.abbr}</span>
+                    {g.state !== 'pre' && <span style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--text-primary)' }}>{g.home.score}</span>}
+                    {spread && g.state === 'pre' && (
+                      <span style={{ fontSize: '0.62rem', color: 'var(--amber-text)', fontWeight: 700 }}>
+                        {spread.home > 0 ? `+${spread.home}` : spread.home}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: '0.6rem', fontWeight: 600, color: g.state === 'in' ? 'var(--amber-text)' : 'var(--text-muted)', marginTop: '1px' }}>
+                    {g.detail}
+                  </div>
+                </button>
+              );
+            })
           )}
         </div>
 
@@ -2800,7 +2856,7 @@ export default function App() {
           />
         )}
 
-        <ScoreboardTab />
+        <ScoreboardTab oddsCache={cache} fetchOdds={fetchSport} sportsConfig={SPORTS} />
 
         <div className="flex items-center justify-between mb-3 flex-wrap gap-2" style={{ borderBottom: '1.5px solid var(--card-border)', paddingBottom: '0.75rem', marginBottom: '1rem' }}>
           <div className="gdb-logo">
