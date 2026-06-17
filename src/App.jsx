@@ -1191,6 +1191,34 @@ function DepthChartsTab() {
 
   const selectedTeam = NFL_TEAMS.find(t => t.id === Number(teamId));
 
+  // ESPN labels formations differently per team (e.g. "3WR 1TE", "Base 3-4 D",
+  // "4-2-5 Nickel"). We normalize these into three consistent buckets —
+  // Offense, Defense, Special Teams — shown in that fixed order regardless
+  // of how ESPN names the underlying formation.
+  const categorizeFormation = (name) => {
+    const n = (name || '').toLowerCase();
+    if (n.includes('special')) return 'Special Teams';
+    if (n.includes(' d') || n.endsWith('d') || n.includes('nickel') || n.includes('dime') || n.includes('3-4') || n.includes('4-3')) {
+      // "3-4" / "4-3" alone could be offense-style labels in theory, but ESPN
+      // consistently uses them for defensive fronts, and offensive formations
+      // use WR/TE/RB counts instead, so this heuristic is safe in practice.
+      if (n.includes('wr') || n.includes('te') || n.includes('rb')) return 'Offense';
+      return 'Defense';
+    }
+    if (n.includes('wr') || n.includes('te') || n.includes('rb') || n.includes('offense')) return 'Offense';
+    if (n.includes('defense')) return 'Defense';
+    return 'Offense'; // safe fallback
+  };
+
+  const CATEGORY_ORDER = ['Offense', 'Defense', 'Special Teams'];
+
+  const groupedFormations = data?.formations
+    ? CATEGORY_ORDER.map((cat) => ({
+        category: cat,
+        formations: data.formations.filter((f) => categorizeFormation(f.name) === cat),
+      })).filter((g) => g.formations.length > 0)
+    : [];
+
   return (
     <div>
       <p className="text-sm kickoff-text mb-4">
@@ -1213,34 +1241,43 @@ function DepthChartsTab() {
       )}
 
       {!loading && !error && data && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          {data.formations.map((formation) => (
-            <div key={formation.id} className="board-card rounded-lg overflow-hidden">
-              <div className="board-card-header px-4 py-2">
-                <span className="font-display text-sm tracking-wide uppercase">{formation.name}</span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          {groupedFormations.map((group) => (
+            <div key={group.category}>
+              <div className="font-display text-sm tracking-wide uppercase mb-2" style={{ color: 'var(--text-muted)' }}>
+                {group.category}
               </div>
-              <div className="overflow-x-auto">
-                <table className="opp-table">
-                  <tbody>
-                    {formation.positions.map((pos) => (
-                      <tr key={pos.abbreviation} className="border-row">
-                        <td className="opp-td" style={{ fontWeight: 700, color: 'var(--text-primary)', background: 'var(--row-alt)' }}>
-                          {pos.abbreviation}
-                        </td>
-                        {pos.players.length === 0 ? (
-                          <td className="opp-td" style={{ color: 'var(--text-muted)' }}>—</td>
-                        ) : pos.players.map((p, i) => (
-                          <td key={i} className="opp-td">
-                            <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '1px' }}>
-                              {p.rank === 1 ? '1st' : p.rank === 2 ? '2nd' : p.rank === 3 ? '3rd' : `${p.rank}th`}
-                            </div>
-                            {p.name}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {group.formations.map((formation) => (
+                  <div key={formation.id} className="board-card rounded-lg overflow-hidden">
+                    <div className="board-card-header px-4 py-2">
+                      <span className="font-display text-sm tracking-wide uppercase">{formation.name}</span>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="opp-table">
+                        <tbody>
+                          {formation.positions.map((pos) => (
+                            <tr key={pos.abbreviation} className="border-row">
+                              <td className="opp-td" style={{ fontWeight: 700, color: 'var(--text-primary)', background: 'var(--row-alt)' }}>
+                                {pos.abbreviation}
+                              </td>
+                              {pos.players.length === 0 ? (
+                                <td className="opp-td" style={{ color: 'var(--text-muted)' }}>—</td>
+                              ) : pos.players.map((p, i) => (
+                                <td key={i} className="opp-td">
+                                  <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '1px' }}>
+                                    {p.rank === 1 ? '1st' : p.rank === 2 ? '2nd' : p.rank === 3 ? '3rd' : `${p.rank}th`}
+                                  </div>
+                                  {p.name}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           ))}
