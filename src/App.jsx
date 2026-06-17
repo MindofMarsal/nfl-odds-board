@@ -1127,6 +1127,127 @@ function ByeWeeksTab() {
   );
 }
 
+// ESPN's numeric team IDs (1-34, with some gaps/retired franchise IDs).
+const NFL_TEAMS = [
+  { id: 22, abbr: 'ARI', name: 'Arizona Cardinals' },
+  { id: 1, abbr: 'ATL', name: 'Atlanta Falcons' },
+  { id: 33, abbr: 'BAL', name: 'Baltimore Ravens' },
+  { id: 2, abbr: 'BUF', name: 'Buffalo Bills' },
+  { id: 29, abbr: 'CAR', name: 'Carolina Panthers' },
+  { id: 3, abbr: 'CHI', name: 'Chicago Bears' },
+  { id: 4, abbr: 'CIN', name: 'Cincinnati Bengals' },
+  { id: 5, abbr: 'CLE', name: 'Cleveland Browns' },
+  { id: 6, abbr: 'DAL', name: 'Dallas Cowboys' },
+  { id: 7, abbr: 'DEN', name: 'Denver Broncos' },
+  { id: 8, abbr: 'DET', name: 'Detroit Lions' },
+  { id: 9, abbr: 'GB', name: 'Green Bay Packers' },
+  { id: 34, abbr: 'HOU', name: 'Houston Texans' },
+  { id: 11, abbr: 'IND', name: 'Indianapolis Colts' },
+  { id: 30, abbr: 'JAX', name: 'Jacksonville Jaguars' },
+  { id: 12, abbr: 'KC', name: 'Kansas City Chiefs' },
+  { id: 13, abbr: 'LV', name: 'Las Vegas Raiders' },
+  { id: 24, abbr: 'LAC', name: 'Los Angeles Chargers' },
+  { id: 14, abbr: 'LAR', name: 'Los Angeles Rams' },
+  { id: 15, abbr: 'MIA', name: 'Miami Dolphins' },
+  { id: 16, abbr: 'MIN', name: 'Minnesota Vikings' },
+  { id: 17, abbr: 'NE', name: 'New England Patriots' },
+  { id: 18, abbr: 'NO', name: 'New Orleans Saints' },
+  { id: 19, abbr: 'NYG', name: 'New York Giants' },
+  { id: 20, abbr: 'NYJ', name: 'New York Jets' },
+  { id: 21, abbr: 'PHI', name: 'Philadelphia Eagles' },
+  { id: 23, abbr: 'PIT', name: 'Pittsburgh Steelers' },
+  { id: 25, abbr: 'SF', name: 'San Francisco 49ers' },
+  { id: 26, abbr: 'SEA', name: 'Seattle Seahawks' },
+  { id: 27, abbr: 'TB', name: 'Tampa Bay Buccaneers' },
+  { id: 10, abbr: 'TEN', name: 'Tennessee Titans' },
+  { id: 28, abbr: 'WSH', name: 'Washington Commanders' },
+];
+
+function DepthChartsTab() {
+  const [teamId, setTeamId] = useState(NFL_TEAMS[0].id);
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchChart = useCallback(async (id) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/depthcharts?team=${id}`);
+      const json = await res.json();
+      if (json.error) throw new Error(json.error);
+      setData(json);
+    } catch (e) {
+      setError(e.message);
+      setData(null);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchChart(teamId); }, [teamId, fetchChart]);
+
+  const selectedTeam = NFL_TEAMS.find(t => t.id === Number(teamId));
+
+  return (
+    <div>
+      <p className="text-sm kickoff-text mb-4">
+        Live NFL depth charts by team, sourced from ESPN. Formations and ranked players update as teams adjust their rosters.
+      </p>
+
+      <div className="flex items-center gap-2 flex-wrap mb-4">
+        <select className="select-control" value={teamId} onChange={(e) => setTeamId(Number(e.target.value))}>
+          {NFL_TEAMS.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+        </select>
+        <button className="refresh-btn" onClick={() => fetchChart(teamId)} disabled={loading}>
+          {loading ? 'Loading…' : 'Refresh'}
+        </button>
+      </div>
+
+      {error && <div className="error-box">{error}</div>}
+
+      {loading && !error && (
+        <div className="text-sm kickoff-text">Loading {selectedTeam?.name} depth chart…</div>
+      )}
+
+      {!loading && !error && data && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          {data.formations.map((formation) => (
+            <div key={formation.id} className="board-card rounded-lg overflow-hidden">
+              <div className="board-card-header px-4 py-2">
+                <span className="font-display text-sm tracking-wide uppercase">{formation.name}</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="opp-table">
+                  <tbody>
+                    {formation.positions.map((pos) => (
+                      <tr key={pos.abbreviation} className="border-row">
+                        <td className="opp-td" style={{ fontWeight: 700, color: 'var(--text-primary)', background: 'var(--row-alt)' }}>
+                          {pos.abbreviation}
+                        </td>
+                        {pos.players.length === 0 ? (
+                          <td className="opp-td" style={{ color: 'var(--text-muted)' }}>—</td>
+                        ) : pos.players.map((p, i) => (
+                          <td key={i} className="opp-td">
+                            <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '1px' }}>
+                              {p.rank === 1 ? '1st' : p.rank === 2 ? '2nd' : p.rank === 3 ? '3rd' : `${p.rank}th`}
+                            </div>
+                            {p.name}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Transforms ESPN scoreboard event into a compact ticker item
 function parseESPNGame(event) {
   const comp = event.competitions?.[0];
@@ -2669,7 +2790,7 @@ export default function App() {
         .gdb-nav { background: var(--card-bg); border-bottom: 1.5px solid var(--card-border); padding: 0.65rem 1.5rem; display: flex; align-items: center; justify-content: space-between; margin: -1.5rem -1.5rem 1.5rem; }
       `}</style>
 
-      <div className={`mx-auto ${['fantasy_points','fantasy_ppg','opportunities','red_zone','adp','adp_2qb','draft_assistant','bye_weeks'].includes(activeId) ? 'max-w-7xl' : 'max-w-3xl'}`}>
+      <div className={`mx-auto ${['fantasy_points','fantasy_ppg','opportunities','red_zone','adp','adp_2qb','draft_assistant','bye_weeks','depth_charts'].includes(activeId) ? 'max-w-7xl' : 'max-w-3xl'}`}>
         {showAuth && (
           <AuthModal
             onClose={() => setShowAuth(false)}
@@ -2717,7 +2838,7 @@ export default function App() {
             {/* Fantasy dropdown */}
             <div className="nav-group">
               <button
-                className={`tab-btn ${['fantasy_points','fantasy_ppg','opportunities','red_zone','adp','adp_2qb','draft_assistant','bye_weeks'].includes(activeId) ? 'active' : ''}`}
+                className={`tab-btn ${['fantasy_points','fantasy_ppg','opportunities','red_zone','adp','adp_2qb','draft_assistant','bye_weeks','depth_charts'].includes(activeId) ? 'active' : ''}`}
                 onClick={() => setOpenNav(openNav === 'fantasy' ? null : 'fantasy')}
               >
                 Fantasy {openNav === 'fantasy' ? '▲' : '▼'}
@@ -2733,6 +2854,7 @@ export default function App() {
                     { id: 'red_zone', label: 'Red Zone Usage' },
                     { id: 'draft_assistant', label: 'Draft Assistant' },
                     { id: 'bye_weeks', label: 'NFL Bye Weeks' },
+                    { id: 'depth_charts', label: 'NFL Depth Charts' },
                   ].map((item) => (
                     <button
                       key={item.id}
@@ -2785,6 +2907,7 @@ export default function App() {
         {activeId === 'adp' && <FantasyAdpTab />}
         {activeId === 'adp_2qb' && <TwoQbAdpTab />}
         {activeId === 'bye_weeks' && <ByeWeeksTab />}
+        {activeId === 'depth_charts' && <DepthChartsTab />}
         {activeId === 'opportunities' && (session ? <OpportunitiesTab /> : <LoginPrompt onSignIn={() => setShowAuth(true)} />)}
         {activeId === 'fantasy_points' && (session ? <FantasyDataTab title="Fantasy Points" table="fantasy_points" scoringCols={FP_SCORING_COLS} /> : <LoginPrompt onSignIn={() => setShowAuth(true)} />)}
         {activeId === 'fantasy_ppg' && (session ? <FantasyDataTab title="Fantasy Points Per Game" table="fantasy_ppg" scoringCols={FP_SCORING_COLS} /> : <LoginPrompt onSignIn={() => setShowAuth(true)} />)}
