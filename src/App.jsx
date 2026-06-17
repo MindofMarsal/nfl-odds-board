@@ -1712,19 +1712,19 @@ function RedZoneTab() {
   const COL_DEFS = {
     rz_rushing: [
       { key: 'player', label: 'Player' }, { key: 'team', label: 'Team' },
-      { key: 'i20_att', label: 'i20 Att' }, { key: 'i20_yds', label: 'i20 Yds' }, { key: 'i20_td', label: 'i20 TD' }, { key: 'i20_pctrush', label: 'i20 %Rush' },
-      { key: 'i10_att', label: 'i10 Att' }, { key: 'i10_yds', label: 'i10 Yds' }, { key: 'i10_td', label: 'i10 TD' }, { key: 'i10_pctrush', label: 'i10 %Rush' },
-      { key: 'i5_att', label: 'i5 Att' }, { key: 'i5_yds', label: 'i5 Yds' }, { key: 'i5_td', label: 'i5 TD' }, { key: 'i5_pctrush', label: 'i5 %Rush' },
+      { key: 'i20_att', label: 'i20 Att' }, { key: 'i20_yds', label: 'i20 Yds' }, { key: 'i20_td', label: 'i20 TD' }, { key: 'i20_pctrush', label: 'i20 %Rush', pct: true },
+      { key: 'i10_att', label: 'i10 Att' }, { key: 'i10_yds', label: 'i10 Yds' }, { key: 'i10_td', label: 'i10 TD' }, { key: 'i10_pctrush', label: 'i10 %Rush', pct: true },
+      { key: 'i5_att', label: 'i5 Att' }, { key: 'i5_yds', label: 'i5 Yds' }, { key: 'i5_td', label: 'i5 TD' }, { key: 'i5_pctrush', label: 'i5 %Rush', pct: true },
     ],
     rz_receiving: [
       { key: 'player', label: 'Player' }, { key: 'team', label: 'Team' },
-      { key: 'i20_tgt', label: 'i20 Tgt' }, { key: 'i20_rec', label: 'i20 Rec' }, { key: 'i20_ctchpct', label: 'i20 Ctch%' }, { key: 'i20_yds', label: 'i20 Yds' }, { key: 'i20_td', label: 'i20 TD' }, { key: 'i20_pcttgt', label: 'i20 %Tgt' },
-      { key: 'i10_tgt', label: 'i10 Tgt' }, { key: 'i10_rec', label: 'i10 Rec' }, { key: 'i10_ctchpct', label: 'i10 Ctch%' }, { key: 'i10_yds', label: 'i10 Yds' }, { key: 'i10_td', label: 'i10 TD' }, { key: 'i10_pcttgt', label: 'i10 %Tgt' },
+      { key: 'i20_tgt', label: 'i20 Tgt' }, { key: 'i20_rec', label: 'i20 Rec' }, { key: 'i20_ctchpct', label: 'i20 Ctch%', pct: true }, { key: 'i20_yds', label: 'i20 Yds' }, { key: 'i20_td', label: 'i20 TD' }, { key: 'i20_pcttgt', label: 'i20 %Tgt', pct: true },
+      { key: 'i10_tgt', label: 'i10 Tgt' }, { key: 'i10_rec', label: 'i10 Rec' }, { key: 'i10_ctchpct', label: 'i10 Ctch%', pct: true }, { key: 'i10_yds', label: 'i10 Yds' }, { key: 'i10_td', label: 'i10 TD' }, { key: 'i10_pcttgt', label: 'i10 %Tgt', pct: true },
     ],
     rz_passing: [
       { key: 'player', label: 'Player' }, { key: 'team', label: 'Team' },
-      { key: 'i20_att', label: 'i20 Att' }, { key: 'i20_cmp', label: 'i20 Cmp' }, { key: 'i20_cmppct', label: 'i20 Cmp%' }, { key: 'i20_yds', label: 'i20 Yds' }, { key: 'i20_td', label: 'i20 TD' }, { key: 'i20_int', label: 'i20 Int' },
-      { key: 'i10_att', label: 'i10 Att' }, { key: 'i10_cmppct', label: 'i10 Cmp%' }, { key: 'i10_yds', label: 'i10 Yds' }, { key: 'i10_td', label: 'i10 TD' }, { key: 'i10_int', label: 'i10 Int' },
+      { key: 'i20_att', label: 'i20 Att' }, { key: 'i20_cmp', label: 'i20 Cmp' }, { key: 'i20_cmppct', label: 'i20 Cmp%', pct: true }, { key: 'i20_yds', label: 'i20 Yds' }, { key: 'i20_td', label: 'i20 TD' }, { key: 'i20_int', label: 'i20 Int' },
+      { key: 'i10_att', label: 'i10 Att' }, { key: 'i10_cmppct', label: 'i10 Cmp%', pct: true }, { key: 'i10_yds', label: 'i10 Yds' }, { key: 'i10_td', label: 'i10 TD' }, { key: 'i10_int', label: 'i10 Int' },
     ],
     rz_scoring_att_per_game: [
       { key: 'team', label: 'Team' }, { key: 'rank', label: 'Rank' },
@@ -1809,7 +1809,7 @@ function RedZoneTab() {
                 ) : data.map((row, i) => (
                   <tr key={row.id} className={i % 2 === 0 ? 'stripe-a' : 'stripe-b'}>
                     {cols.map((c) => (
-                      <td key={c.key} className="opp-td">{row[c.key] ?? '—'}</td>
+                      <td key={c.key} className="opp-td">{c.pct && row[c.key] != null ? `${(row[c.key] * 100).toFixed(1)}%` : (row[c.key] ?? '—')}</td>
                     ))}
                   </tr>
                 ))}
