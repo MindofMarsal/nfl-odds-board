@@ -919,7 +919,9 @@ function FantasyAdpTab() {
                 ) : data.map((row, i) => (
                   <tr key={row.id} className={i % 2 === 0 ? 'stripe-a' : 'stripe-b'}>
                     {allCols.map((c) => (
-                      <td key={c.key} className="opp-td">{row[c.key] ?? '—'}</td>
+                      <td key={c.key} className="opp-td">
+                        {c.key === 'pos' ? <PosBadge pos={row.pos} /> : (row[c.key] ?? '—')}
+                      </td>
                     ))}
                   </tr>
                 ))}
@@ -1405,7 +1407,7 @@ function ScoreboardTab() {
         />
       )}
 
-      <div style={{ display: 'flex', alignItems: 'stretch', height: '54px', borderRadius: '8px', overflow: 'hidden' }}>
+      <div style={{ display: 'flex', alignItems: 'stretch', height: '54px', borderTopLeftRadius: '8px', borderTopRightRadius: '8px' }}>
         <div className="nav-group" style={{ flexShrink: 0, borderRight: '1px solid var(--card-border)' }}>
           <button
             onClick={() => setOpenDropdown(v => !v)}
